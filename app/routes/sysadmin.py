@@ -149,8 +149,8 @@ def anonymize(request: Request, user_id: int, csrf: str = Form("")):
     with transaction() as conn:
         conn.execute(
             "UPDATE user SET last_name = 'Бывший', first_name = 'участник', middle_name = '',"
-            " name_normalized = ?, status = 'blocked', telegram = '', department = ''"
-            " WHERE id = ?", (f"удалён-{user_id}", user_id))
+            " name_normalized = ?, login = ?, status = 'blocked', telegram = ''"
+            " WHERE id = ?", (f"удалён-{user_id}", f"deleted{user_id}", user_id))
         conn.execute("UPDATE participant SET display_name_snapshot = 'Бывший участник'"
                      " WHERE user_id = ?", (user_id,))
         conn.execute("UPDATE session SET revoked_at = ? WHERE user_id = ?", (now(), user_id))
@@ -198,7 +198,7 @@ def support(request: Request, status: str = "open"):
     auth.require_sysadmin(request)
     rows = query(
         "SELECT s.*, g.title AS game_title, p.display_name_snapshot AS subject_name,"
-        " u.last_name, u.first_name, u.middle_name, u.qualifier FROM support_request s"
+        " u.last_name, u.first_name, u.middle_name FROM support_request s"
         " LEFT JOIN game g ON g.id = s.game_id"
         " LEFT JOIN participant p ON p.id = s.subject_participant_id"
         " LEFT JOIN user u ON u.id = s.user_id WHERE s.status = ? ORDER BY s.id DESC LIMIT 200",
@@ -242,7 +242,7 @@ def resolve_request(request: Request, req_id: int, csrf: str = Form(""),
 def games(request: Request):
     auth.require_sysadmin(request)
     rows = query(
-        "SELECT g.*, u.last_name, u.first_name, u.middle_name, u.qualifier,"
+        "SELECT g.*, u.last_name, u.first_name, u.middle_name,"
         " (SELECT COUNT(*) FROM participant p WHERE p.game_id = g.id AND p.status = 'alive')"
         " AS alive FROM game g LEFT JOIN user u ON u.id = g.admin_user_id ORDER BY g.id DESC")
     return render(request, "sysadmin/games.html", page="games", rows=rows, display_name=repo.display_name)
@@ -384,7 +384,7 @@ def restore_backup(request: Request, csrf: str = Form(""), name: str = Form(""))
 @router.get("/audit", response_class=HTMLResponse)
 def audit_log(request: Request, action: str = ""):
     auth.require_sysadmin(request)
-    sql = ("SELECT a.*, u.last_name, u.first_name, u.middle_name, u.qualifier FROM audit_log a"
+    sql = ("SELECT a.*, u.last_name, u.first_name, u.middle_name FROM audit_log a"
            " LEFT JOIN user u ON u.id = a.actor_user_id WHERE 1=1")
     params: list = []
     if action.strip():

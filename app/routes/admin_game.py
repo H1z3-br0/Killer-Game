@@ -130,6 +130,7 @@ def invite(request: Request, game_id: int, csrf: str = Form(""),
         ids = [int(x) for x in user_ids if str(x).isdigit()]
 
     added = 0
+    skipped = 0
     with transaction() as conn:
         seats = None
         if game["capacity"]:
@@ -147,6 +148,9 @@ def invite(request: Request, game_id: int, csrf: str = Form(""),
                                   " AND user_id = ?", (game_id, uid)).fetchone()
             if exists:
                 continue
+            if repo.active_game_of(uid, exclude_game_id=game_id):
+                skipped += 1
+                continue
             conn.execute(
                 "INSERT INTO participant (game_id, user_id, display_name_snapshot,"
                 " status, invited_at) VALUES (?, ?, ?, 'invited', ?)",
@@ -154,8 +158,10 @@ def invite(request: Request, game_id: int, csrf: str = Form(""),
             game_logic.notify(conn, uid, "invited",
                               f"Вас добавили в игру «{game['title']}».", game_id)
             added += 1
-    return redirect(f"/manage/games/{game_id}",
-                    f"Приглашено: {added}." if added else "Новых приглашений нет.")
+    note = f"Приглашено: {added}." if added else "Новых приглашений нет."
+    if skipped:
+        note += f" Пропущено занятых в других играх: {skipped}."
+    return redirect(f"/manage/games/{game_id}", note)
 
 
 @router.post("/games/{game_id}/remove/{participant_id}")
@@ -247,6 +253,20 @@ def extend_deadline(request: Request, game_id: int, csrf: str = Form(""),
     audit(user["id"], "deadline_changed", "game", game_id, {"deadline": deadline_at})
     return redirect(f"/manage/games/{game_id}",
                     f"Срок игры: {deadline_at}" if deadline_at.strip() else "Срок снят.")
+
+
+@router.post("/games/{game_id}/reveal")
+def toggle_reveal(request: Request, game_id: int, csrf: str = Form("")):
+    """Открыть разбор закрытой игры всем — когда прятать уже нечего."""
+    auth.check_csrf(request, csrf)
+    user, game = owned_game(request, game_id)
+    if not game:
+        return redirect("/", "Игра недоступна.", "error")
+    new_value = 0 if game["reveal_after_finish"] else 1
+    execute("UPDATE game SET reveal_after_finish = ? WHERE id = ?", (new_value, game_id))
+    audit(user["id"], "game_reveal_toggled", "game", game_id, {"reveal": new_value})
+    return redirect(f"/manage/games/{game_id}",
+                    "Разбор открыт для всех." if new_value else "Разбор снова только для участников.")
 
 
 @router.post("/games/{game_id}/request-withdraw")

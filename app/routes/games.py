@@ -50,6 +50,23 @@ def catalog(request: Request):
     return render(request, "catalog.html", games=repo.open_catalog(user["id"]))
 
 
+@router.get("/people", response_class=HTMLResponse)
+def people(request: Request, q: str = ""):
+    """Поиск человека по ФИО или логину."""
+    auth.require_user(request)
+    return render(request, "people.html", rows=repo.search_people(q), q=q)
+
+
+@router.get("/people/{user_id}", response_class=HTMLResponse)
+def person(request: Request, user_id: int):
+    auth.require_user(request)
+    card = repo.public_profile(user_id)
+    if not card:
+        return render(request, "error.html", status_code=404, code=404,
+                      message="Такого человека нет.")
+    return render(request, "person.html", display_name=repo.display_name, **card)
+
+
 @router.get("/hall", response_class=HTMLResponse)
 def hall(request: Request, year: str = ""):
     auth.require_user(request)
@@ -157,6 +174,11 @@ def join_game(request: Request, game_id: int, csrf: str = Form("")):
         # В приватную игру по своей инициативе войти нельзя — только приглашение.
         if game["visibility"] != "open":
             return redirect("/", "Это закрытая игра, вход только по приглашению.", "error")
+        busy = repo.active_game_of(user["id"], exclude_game_id=game_id)
+        if busy:
+            return redirect("/catalog",
+                            f"Вы уже играете в «{busy['title']}». Одновременно можно"
+                            " участвовать только в одной игре.", "error")
         if game["capacity"]:
             joined = repo.game_counters(game_id)["joined"]
             if joined >= game["capacity"]:
@@ -167,6 +189,11 @@ def join_game(request: Request, game_id: int, csrf: str = Form("")):
                 " status, invited_at, joined_at) VALUES (?, ?, ?, 'joined', ?, ?)",
                 (game_id, user["id"], repo.display_name(user), now(), now()))
     else:
+        busy = repo.active_game_of(user["id"], exclude_game_id=game_id)
+        if busy:
+            return redirect(f"/games/{game_id}",
+                            f"Вы уже играете в «{busy['title']}». Одновременно можно"
+                            " участвовать только в одной игре.", "error")
         execute("UPDATE participant SET status = 'joined', joined_at = ? WHERE id = ?",
                 (now(), me["id"]))
     return redirect(f"/games/{game_id}", "Вы в составе. Ждём старта.")
@@ -252,12 +279,11 @@ def profile(request: Request):
 
 @router.post("/profile")
 def profile_save(request: Request, csrf: str = Form(""), avatar_emoji: str = Form("🕵"),
-                 department: str = Form(""), telegram: str = Form("")):
+                 telegram: str = Form("")):
     auth.check_csrf(request, csrf)
     user = auth.require_user(request)
-    execute("UPDATE user SET avatar_emoji = ?, department = ?, telegram = ? WHERE id = ?",
-            (avatar_emoji[:4] or "🕵", department.strip()[:60],
-             telegram.strip().lstrip("@")[:60], user["id"]))
+    execute("UPDATE user SET avatar_emoji = ?, telegram = ? WHERE id = ?",
+            (avatar_emoji[:4] or "🕵", telegram.strip().lstrip("@")[:60], user["id"]))
     return redirect("/profile", "Профиль сохранён.")
 
 

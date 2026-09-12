@@ -4,8 +4,7 @@
 <div class="card">
   <div class="head">
     <h2>{{ user.avatar_emoji }} {{ user.last_name }} {{ user.first_name }}</h2>
-    <span class="s"><span class="mono faint">@{{ user.login }}</span>{% if user.department %}
-      <span class="dim"> · {{ user.department }}</span>{% endif %}</span>
+    <span class="mono s faint">@{{ user.login }}</span>
   </div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div><span class="lbl">Игр</span><b>{{ stats.games }}</b></div>
@@ -22,8 +21,7 @@
   <form method="post" action="/profile" style="margin-top:18px">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
-      <label style="flex:0 0 80px"><span>Аватар</span><input name="avatar_emoji" value="{{ user.avatar_emoji }}" maxlength="4"></label>
-      <label><span>Отдел</span><input name="department" value="{{ user.department }}"></label>
+      <label style="flex:0 0 90px"><span>Аватар</span><input name="avatar_emoji" value="{{ user.avatar_emoji }}" maxlength="4"></label>
       <label><span>Telegram</span><input name="telegram" value="{{ user.telegram }}" placeholder="без @"></label>
     </div>
     <button class="sm" style="margin-top:13px">Сохранить</button>

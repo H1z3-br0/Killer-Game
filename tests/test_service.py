@@ -136,7 +136,7 @@ def test_every_page_renders() -> None:
     login(admin, "Шеф", "Борис")
     gid = db.query_one("SELECT id FROM game ORDER BY id DESC")["id"]
     uid = db.query_one("SELECT id FROM user WHERE last_name = 'Первый'")["id"]
-    pages = ["/", "/rules", "/catalog", "/hall", "/hall?year=2026", "/profile", "/notifications",
+    pages = ["/", "/rules", "/catalog", "/people", "/hall", "/hall?year=2026", "/profile", "/notifications",
              "/support", "/login/device", "/login/reset", "/register",
              f"/games/{gid}", f"/manage/games/{gid}", "/manage/games/new",
              "/admin", "/admin/users", f"/admin/users/{uid}", "/admin/support",
@@ -149,6 +149,50 @@ def test_every_page_renders() -> None:
             broken.append(f"{url} -> {r.status_code}")
     assert not broken, "страницы не открылись: " + ", ".join(broken)
     print(f"✓ все {len(pages)} страниц открываются")
+
+
+def test_one_game_at_a_time() -> None:
+    """Настройка «несколько игр сразу» должна что-то менять, а не быть галочкой."""
+    admin = client()
+    login(admin, "Шеф")
+    ids = []
+    for title in ("Игра А", "Игра Б"):
+        admin.get("/manage/games/new")
+        admin.post("/manage/games/new", data={"csrf": csrf(admin), "title": title,
+                                              "visibility": "open", "color": "#D9A441"})
+        ids.append(db.query_one("SELECT id FROM game ORDER BY id DESC")["id"])
+    first, second = ids
+
+    player = client()
+    login(player, "Первый")
+    settings_store.set_value("allow_multiple_active_games", True)
+    player.post(f"/games/{first}/join", data={"csrf": csrf(player)})
+    assert repo.my_participation(first, db.query_one(
+        "SELECT id FROM user WHERE login = ?", (login_for("Первый"),))["id"]) is not None
+
+    # Теперь запрещаем — во вторую игру вход должен закрыться.
+    settings_store.set_value("allow_multiple_active_games", False)
+    r = player.post(f"/games/{second}/join", data={"csrf": csrf(player)})
+    uid = db.query_one("SELECT id FROM user WHERE login = ?", (login_for("Первый"),))["id"]
+    assert repo.my_participation(second, uid) is None, "запрет не сработал"
+    assert "только в одной игре" in r.text
+
+    # Разрешаем обратно — вход открывается.
+    settings_store.set_value("allow_multiple_active_games", True)
+    player.post(f"/games/{second}/join", data={"csrf": csrf(player)})
+    assert repo.my_participation(second, uid) is not None, "разрешение не сработало"
+    print("✓ настройка «одна игра за раз» действительно ограничивает")
+
+
+def test_people_search() -> None:
+    c = client()
+    login(c, "Шеф")
+    assert "Первый" in c.get("/people?q=Первый").text
+    assert "Никого не найдено" in c.get("/people?q=несуществующий").text
+    uid = db.query_one("SELECT id FROM user WHERE last_name = 'Первый'")["id"]
+    page = c.get(f"/people/{uid}").text
+    assert "Сыгранные игры" in page and "Первый" in page
+    print("✓ поиск людей по ФИО работает, профиль открывается")
 
 
 def test_player_cannot_reach_admin() -> None:
@@ -166,5 +210,7 @@ if __name__ == "__main__":
     test_merge_duplicates()
     test_subnet_guard()
     test_every_page_renders()
+    test_one_game_at_a_time()
+    test_people_search()
     test_player_cannot_reach_admin()
     print("\nслужебные проверки пройдены")

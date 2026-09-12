@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Люди{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>Люди</h2>
+    <span class="s faint">{{ rows | length }}</span>
+  </div>
+  <form method="get" class="row" style="margin-bottom:14px">
+    <label><span>Поиск</span><input name="q" value="{{ q }}" placeholder="фамилия или логин" autofocus></label>
+    <label style="flex:0 0 110px"><span>&nbsp;</span><button class="wide">Найти</button></label>
+  </form>
+  <div class="scroll"><table>
+    <tr><th>Человек</th><th>Побед</th><th>Устранений</th><th>Игр</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><a href="/people/{{ r.id }}">{{ r.avatar_emoji }} {{ r.name }}</a>
+        <span class="mono s faint">@{{ r.login }}</span></td>
+      <td class="n">{{ r.wins }}</td><td class="n">{{ r.kills }}</td>
+      <td class="n faint">{{ r.games }}</td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="empty">Никого не найдено</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

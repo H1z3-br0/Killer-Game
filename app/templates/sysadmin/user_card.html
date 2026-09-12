@@ -10,7 +10,6 @@
   <div class="acts" style="margin-bottom:14px">
     {% if user.role == 'sysadmin' %}<span class="tag wait">сисадмин</span>{% endif %}
     {% if user.status == 'blocked' %}<span class="tag out">заблокирован</span>{% endif %}
-    {% if user.department %}<span class="s dim">{{ user.department }}</span>{% endif %}
     {% if user.telegram %}<a class="s" href="https://t.me/{{ user.telegram }}">@{{ user.telegram }}</a>{% endif %}
     <span class="s faint">с {{ user.created_at[:10] }}</span>
   </div>

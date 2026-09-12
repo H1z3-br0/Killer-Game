@@ -93,6 +93,27 @@
 </div>
 {% endif %}
 
+{% if game.status in ('finished','void') %}
+<div class="card">
+  <h2>После финала</h2>
+  <div class="acts">
+    <a class="btn gold" href="/games/{{ game.id }}">Разбор игры</a>
+    <a class="btn" href="/games/{{ game.id }}/export.csv">Скачать .csv</a>
+    {% if game.visibility == 'private' %}
+    <form method="post" action="/manage/games/{{ game.id }}/reveal" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button>{{ 'Скрыть разбор' if game.reveal_after_finish else 'Открыть разбор всем' }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if game.visibility == 'private' %}
+  <p class="s dim" style="margin-top:12px">
+    {% if game.reveal_after_finish %}Состав и разбор видны всем в сервисе.
+    {% else %}Состав и разбор видны только участникам.{% endif %}</p>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if game.status in ('running','paused') %}
 <div class="card">
   <h2>Управление</h2>

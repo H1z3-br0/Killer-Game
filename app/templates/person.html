@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ display_name(user) }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>{{ user.avatar_emoji }} {{ display_name(user) }}
+      <span class="mono faint" style="font-size:14px">@{{ user.login }}</span></h2>
+    <a class="btn sm ghost" href="/people">К списку</a>
+  </div>
+  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+    <div><span class="lbl">Игр</span><b>{{ stats.games }}</b></div>
+    <div><span class="lbl">Устранений</span><b>{{ stats.kills }}</b></div>
+    <div><span class="lbl">Побед</span><b>{{ stats.wins }}</b></div>
+  </div>
+  {% set titles = {'first_blood':'Первая кровь','triple':'Три устранения','double_day':'Двойное за день',
+                   'finalist':'Финалист','survivor3':'Пережил троих','veteran':'Ветеран','winner':'Победитель'} %}
+  {% if achievements %}
+  <div class="acts" style="margin-top:16px">
+    {% for a in achievements %}<span class="tag wait">{{ titles.get(a.code, a.code) }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Сыгранные игры</h2>
+  <div class="scroll"><table>
+    <tr><th>Игра</th><th>Место</th><th>Устранений</th></tr>
+    {% for g in games %}
+    <tr>
+      <td>{% if g.visibility == 'open' %}<a href="/games/{{ g.id }}">{{ g.title }}</a>
+          {% else %}{{ g.title }} <span class="tag plain">закрытая</span>{% endif %}
+          {% if g.won %}<span class="tag wait">победа</span>{% endif %}</td>
+      <td class="n">{{ g.place or '—' }}</td><td class="n">{{ g.kills_count }}</td>
+    </tr>
+    {% else %}<tr><td colspan="3" class="empty">Пока не играл</td></tr>{% endfor %}
+  </table></div>
+  <p class="s faint" style="margin:12px 0 0">Показаны только завершённые игры.</p>
+</div>
+{% endblock %}

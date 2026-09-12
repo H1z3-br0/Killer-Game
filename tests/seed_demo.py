@@ -19,13 +19,13 @@ for i, (last, first, login) in enumerate(people):
                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                (login, last, first, security.normalize_name(last, first),
                 security.hash_password("secret123"),
-                "sysadmin" if i == 0 else "user", "🕵", "Разработка", db.now(), db.now()))
+                "sysadmin" if i == 0 else "user", "🕵", db.now(), db.now()))
 
 db.execute("INSERT INTO game (title, description, status, visibility, color, admin_user_id,"
            " rules_json, created_at) VALUES (?, ?, 'recruiting', 'open', ?, 1, ?, ?)",
            ("Осенний отстрел", "Игра на неделю для всего этажа.", "#D9A441",
             '{"weapon": "наклейка на спине", "safe_zones": "столовая, переговорные",'
-            ' "quiet_hours": "обед и после 19:00"}', db.now()))
+            ' "quiet_from": "19:00", "quiet_to": "09:00", "no_weekends": true}', db.now()))
 for uid in range(2, 8):
     u = db.query_one("SELECT * FROM user WHERE id = ?", (uid,))
     db.execute("INSERT INTO participant (game_id, user_id, display_name_snapshot, status,"

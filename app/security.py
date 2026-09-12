@@ -69,15 +69,6 @@ def normalize_name(*parts: str) -> str:
 
 
 LOGIN_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,19}$")
-TRANSLIT = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh",
-    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
-    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "c",
-    "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "", "э": "e",
-    "ю": "yu", "я": "ya",
-}
-
-
 def normalize_login(value: str) -> str:
     """Логин регистронезависим: Petrov и petrov — один и тот же человек."""
     return (value or "").strip().lower()

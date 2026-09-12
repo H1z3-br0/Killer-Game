@@ -19,12 +19,75 @@ def user_by_name(normalized: str) -> sqlite3.Row | None:
     return query_one("SELECT * FROM user WHERE name_normalized = ?", (normalized,))
 
 
+def search_people(q: str = "", limit: int = 60) -> list[dict]:
+    """Поиск человека по ФИО или логину — для раздела «Люди».
+
+    Активные игры не показываем: состав закрытой игры не должен утекать
+    через чужой профиль.
+    """
+    sql = ("SELECT u.id, u.login, u.avatar_emoji, u.last_name, u.first_name,"
+           " u.middle_name,"
+           " (SELECT COUNT(*) FROM participant p JOIN game g ON g.id = p.game_id"
+           "  WHERE p.user_id = u.id AND g.status = 'finished'"
+           "  AND p.status IN ('alive','dead','withdrawn')) AS games,"
+           " (SELECT COALESCE(SUM(p.kills_count), 0) FROM participant p"
+           "  JOIN game g ON g.id = p.game_id WHERE p.user_id = u.id"
+           "  AND g.status = 'finished') AS kills,"
+           " (SELECT COUNT(*) FROM game g WHERE g.status = 'finished'"
+           "  AND g.winner_participant_id IN (SELECT id FROM participant"
+           "   WHERE user_id = u.id)) AS wins"
+           " FROM user u WHERE u.status = 'active'")
+    params: list = []
+    if q.strip():
+        from . import security
+        sql += " AND (u.name_normalized LIKE ? OR u.login LIKE ?)"
+        params += [f"%{security.normalize_name(q)}%", f"%{security.normalize_login(q)}%"]
+    sql += " ORDER BY u.last_name, u.first_name LIMIT ?"
+    params.append(limit)
+    return [{**dict(r), "name": display_name(r)} for r in query(sql, tuple(params))]
+
+
+def public_profile(user_id: int) -> dict:
+    """Чужой профиль: только завершённые игры, без текущих."""
+    user = query_one("SELECT * FROM user WHERE id = ? AND status = 'active'", (user_id,))
+    if user is None:
+        return {}
+    return {
+        "user": user,
+        "stats": user_stats(user_id),
+        "achievements": achievements(user_id),
+        "games": query(
+            "SELECT g.id, g.title, g.color, g.visibility, p.place, p.kills_count,"
+            " (g.winner_participant_id = p.id) AS won"
+            " FROM participant p JOIN game g ON g.id = p.game_id"
+            " WHERE p.user_id = ? AND g.status = 'finished'"
+            " AND p.status IN ('alive','dead','withdrawn') ORDER BY g.id DESC", (user_id,)),
+    }
+
+
 def display_name(user: sqlite3.Row) -> str:
+    """Фамилия, имя и отчество — всё, чем человек подписан в игре."""
+    keys = user.keys() if hasattr(user, "keys") else []
     parts = [user["last_name"], user["first_name"]]
-    if user["middle_name"]:
+    if "middle_name" in keys and user["middle_name"]:
         parts.append(user["middle_name"])
-    name = " ".join(p for p in parts if p)
-    return f"{name} ({user['qualifier']})" if user["qualifier"] else name
+    return " ".join(p for p in parts if p)
+
+
+def active_game_of(user_id: int, exclude_game_id: int | None = None) -> sqlite3.Row | None:
+    """В какой активной игре человек уже состоит.
+
+    Нужно, когда сисадмин запретил участие в нескольких играх сразу: иначе
+    настройка была бы галочкой, которая ничего не меняет.
+    """
+    from . import settings_store
+    if settings_store.get("allow_multiple_active_games"):
+        return None
+    return query_one(
+        "SELECT g.id, g.title FROM participant p JOIN game g ON g.id = p.game_id"
+        " WHERE p.user_id = ? AND p.status IN ('invited','joined','alive')"
+        " AND g.status IN ('draft','recruiting','running','paused')"
+        " AND g.id != COALESCE(?, -1) LIMIT 1", (user_id, exclude_game_id))
 
 
 def my_participation(game_id: int, user_id: int) -> sqlite3.Row | None:
@@ -106,7 +169,7 @@ def full_log(game_id: int) -> list[dict]:
 
 def participants(game_id: int) -> list[sqlite3.Row]:
     return query(
-        "SELECT p.*, u.avatar_emoji, u.department FROM participant p"
+        "SELECT p.*, u.avatar_emoji FROM participant p"
         " LEFT JOIN user u ON u.id = p.user_id WHERE p.game_id = ?"
         " ORDER BY CASE p.status WHEN 'alive' THEN 0 WHEN 'joined' THEN 1"
         " WHEN 'invited' THEN 2 ELSE 3 END, p.display_name_snapshot", (game_id,))
@@ -175,7 +238,7 @@ def user_stats(user_id: int) -> dict:
 
 def hall_of_fame(limit: int = 20) -> list[dict]:
     rows = query(
-        "SELECT u.id, u.avatar_emoji, u.last_name, u.first_name, u.middle_name, u.qualifier,"
+        "SELECT u.id, u.avatar_emoji, u.last_name, u.first_name, u.middle_name,"
         " COUNT(DISTINCT p.game_id) AS games, COALESCE(SUM(p.kills_count), 0) AS kills,"
         " SUM(CASE WHEN g.winner_participant_id = p.id THEN 1 ELSE 0 END) AS wins"
         " FROM user u JOIN participant p ON p.user_id = u.id"
@@ -192,7 +255,7 @@ def achievements(user_id: int) -> list[sqlite3.Row]:
 def hall_of_fame_year(year: str | None = None, limit: int = 20) -> list[dict]:
     """Зал славы за год или за всё время."""
     sql = ("SELECT u.id, u.avatar_emoji, u.last_name, u.first_name, u.middle_name,"
-           " u.qualifier, COUNT(DISTINCT p.game_id) AS games,"
+           " COUNT(DISTINCT p.game_id) AS games,"
            " COALESCE(SUM(p.kills_count), 0) AS kills,"
            " SUM(CASE WHEN g.winner_participant_id = p.id THEN 1 ELSE 0 END) AS wins"
            " FROM user u JOIN participant p ON p.user_id = u.id"
@@ -291,7 +354,7 @@ def user_card(user_id: int) -> dict:
 def possible_duplicates() -> list[dict]:
     """Похожие ФИО — кандидаты в дубли (опечатка при регистрации)."""
     rows = query("SELECT id, name_normalized, last_name, first_name, middle_name,"
-                 " qualifier, created_at FROM user ORDER BY name_normalized")
+                 " created_at FROM user ORDER BY name_normalized")
     pairs = []
     for i, a in enumerate(rows):
         for b in rows[i + 1:]:
