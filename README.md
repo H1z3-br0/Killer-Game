@@ -84,9 +84,38 @@ tests/test_flow.py сквозной сценарий от регистрации
 Автозапуск: `deploy/killer.service` (systemd) или `deploy/com.killer.plist`
 (launchd, macOS).
 
-## Тесты
+## Разработка
+
+```bash
+make install    # окружение и зависимости
+make run        # запустить (PORT=9000 make run — на другом порту)
+make test       # оба набора тестов
+make check      # быстрая проверка синтаксиса
+make backup     # снять копию базы руками
+make hooks      # ставить тесты на pre-commit
+make help       # список команд
+```
+
+Тесты можно гонять и напрямую:
 
 ```bash
 .venv/bin/python tests/test_flow.py      # сквозной сценарий игры
 .venv/bin/python tests/test_service.py   # дедлайны, правила, экспорт, все страницы
 ```
+
+## Git
+
+Основная ветка — `main`. В репозиторий **не попадают**: окружение `.venv`,
+каталог `data/` с базой и бэкапами, кеши Python, `.env`, логи — см.
+`.gitignore`. Шрифты в `app/static/fonts/` версионируются намеренно: сервер
+не ходит в интернет, и без них интерфейс потеряет типографику.
+
+Обновление на сервере:
+
+```bash
+git pull
+make install          # если менялись зависимости
+sudo systemctl restart killer      # или launchctl kickstart -k gui/$(id -u)/com.killer
+```
+
+Миграции применяются сами при старте, база переживает обновление.
