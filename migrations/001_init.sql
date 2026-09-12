@@ -1,24 +1,31 @@
--- Киллер: начальная схема.
--- Источник правды по ходу игры — таблица event; текущие цели лежат в
--- participant.target_id и являются производной, пересчитываемой при каждом
--- применённом событии.
+-- Киллер: схема базы.
+--
+-- Источник правды о ходе игры — таблица event. Текущие цели в participant.target_id
+-- пересчитываются из неё при каждом применённом событии, а edge_snapshot хранит
+-- рёбра круга с интервалами действия, чтобы разбор и откат были возможны.
+--
+-- Уникален логин, а не ФИО: полные тёзки — обычное дело, различает их логин.
 
+-- ─── люди ───
+-- Уникален логин; ФИО — отображаемое имя, тёзки допустимы.
 CREATE TABLE user (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    login                 TEXT    NOT NULL DEFAULT '',
     last_name             TEXT    NOT NULL,
     first_name            TEXT    NOT NULL,
     middle_name           TEXT    NOT NULL DEFAULT '',
-    qualifier             TEXT    NOT NULL DEFAULT '',
-    name_normalized       TEXT    NOT NULL UNIQUE,
+    name_normalized       TEXT    NOT NULL,
     password_hash         TEXT    NOT NULL,
-    role                  TEXT    NOT NULL DEFAULT 'user',      -- user | sysadmin
-    status                TEXT    NOT NULL DEFAULT 'active',    -- active | blocked
+    role                  TEXT    NOT NULL DEFAULT 'user',
+    status                TEXT    NOT NULL DEFAULT 'active',
     telegram              TEXT    NOT NULL DEFAULT '',
     avatar_emoji          TEXT    NOT NULL DEFAULT '🕵',
-    department            TEXT    NOT NULL DEFAULT '',
     created_at            TEXT    NOT NULL,
     last_seen_at          TEXT
 );
+
+CREATE UNIQUE INDEX idx_user_login ON user(login);
+CREATE INDEX idx_user_name ON user(name_normalized);
 
 CREATE TABLE session (
     id                    TEXT    PRIMARY KEY,          -- случайный токен (хеш)
@@ -28,7 +35,10 @@ CREATE TABLE session (
     last_seen_at          TEXT    NOT NULL,
     revoked_at            TEXT
 );
+
 CREATE INDEX idx_session_user ON session(user_id);
+
+-- ─── игры ───
 
 CREATE TABLE game (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +57,7 @@ CREATE TABLE game (
     deadline_at           TEXT,
     finished_at           TEXT
 );
+
 CREATE INDEX idx_game_status ON game(status);
 
 CREATE TABLE participant (
@@ -63,7 +74,10 @@ CREATE TABLE participant (
     died_at               TEXT,
     UNIQUE (game_id, user_id)
 );
+
 CREATE INDEX idx_participant_game ON participant(game_id, status);
+
+-- ─── журнал событий: источник правды о ходе игры ───
 
 CREATE TABLE event (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +89,7 @@ CREATE TABLE event (
     created_at            TEXT    NOT NULL,
     reverted_at           TEXT
 );
+
 CREATE INDEX idx_event_game ON event(game_id, id);
 
 CREATE TABLE kill_claim (
@@ -89,7 +104,9 @@ CREATE TABLE kill_claim (
     created_at            TEXT    NOT NULL,
     resolved_at           TEXT
 );
+
 CREATE INDEX idx_claim_game ON kill_claim(game_id, status);
+
 CREATE INDEX idx_claim_victim ON kill_claim(victim_id, status);
 
 CREATE TABLE edge_snapshot (
@@ -100,7 +117,10 @@ CREATE TABLE edge_snapshot (
     valid_from_event_id   INTEGER NOT NULL,
     valid_to_event_id     INTEGER
 );
+
 CREATE INDEX idx_edge_game ON edge_snapshot(game_id, valid_to_event_id);
+
+-- ─── поддержка и восстановление доступа ───
 
 CREATE TABLE support_request (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,6 +136,7 @@ CREATE TABLE support_request (
     resolved_at           TEXT,
     resolved_by           INTEGER
 );
+
 CREATE INDEX idx_support_status ON support_request(status, created_at);
 
 CREATE TABLE reset_code (
@@ -137,6 +158,8 @@ CREATE TABLE device_code (
     used_at               TEXT
 );
 
+-- ─── уведомления, достижения, аудит ───
+
 CREATE TABLE notification (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id               INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
@@ -146,6 +169,7 @@ CREATE TABLE notification (
     read_at               TEXT,
     created_at            TEXT    NOT NULL
 );
+
 CREATE INDEX idx_notification_user ON notification(user_id, read_at);
 
 CREATE TABLE achievement (
@@ -166,7 +190,10 @@ CREATE TABLE audit_log (
     payload_json          TEXT    NOT NULL DEFAULT '{}',
     created_at            TEXT    NOT NULL
 );
+
 CREATE INDEX idx_audit_created ON audit_log(created_at);
+
+-- ─── служебное ───
 
 CREATE TABLE setting (
     key                   TEXT    PRIMARY KEY,
@@ -179,4 +206,20 @@ CREATE TABLE rate_hit (
     bucket                TEXT    NOT NULL,
     created_at            TEXT    NOT NULL
 );
+
 CREATE INDEX idx_rate_bucket ON rate_hit(bucket, created_at);
+
+CREATE TABLE error_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    path        TEXT    NOT NULL DEFAULT '',
+    message     TEXT    NOT NULL,
+    traceback   TEXT    NOT NULL DEFAULT '',
+    created_at  TEXT    NOT NULL
+);
+
+CREATE INDEX idx_error_created ON error_log(created_at);
+
+CREATE TABLE request_stat (
+    day         TEXT    PRIMARY KEY,
+    hits        INTEGER NOT NULL DEFAULT 0
+);

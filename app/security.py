@@ -10,7 +10,7 @@ import hmac
 import re
 import secrets
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -81,7 +81,7 @@ def login_is_valid(value: str) -> bool:
 def rate_limit_hit(bucket: str, kind: str) -> bool:
     """True — лимит исчерпан, запрос выполнять нельзя."""
     limit, window = config.RATE_LIMITS.get(kind, (60, 60))
-    since = (datetime.now(timezone.utc) - timedelta(seconds=window)).replace(
+    since = (datetime.now(UTC) - timedelta(seconds=window)).replace(
         microsecond=0).isoformat()
     key = f"{kind}:{bucket}"
     row = query_one(
@@ -94,7 +94,7 @@ def rate_limit_hit(bucket: str, kind: str) -> bool:
 
 
 def expires_in(**kwargs) -> str:
-    return (datetime.now(timezone.utc) + timedelta(**kwargs)).replace(
+    return (datetime.now(UTC) + timedelta(**kwargs)).replace(
         microsecond=0).isoformat()
 
 

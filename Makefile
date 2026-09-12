@@ -1,5 +1,5 @@
 # Короткие команды для разработки и эксплуатации.
-.PHONY: help install run test check backup clean hooks
+.PHONY: help install run test lint audit secrets ci check backup clean hooks
 
 PY := .venv/bin/python
 PORT ?= 8000
@@ -15,9 +15,30 @@ install:        ## Создать окружение и поставить за�
 run:            ## Запустить сервис (PORT=8000 по умолчанию)
 	PORT=$(PORT) ./run.sh
 
-test:           ## Прогнать оба набора тестов
-	$(PY) tests/test_flow.py
-	$(PY) tests/test_service.py
+test:           ## Прогнать тесты (149 штук)
+	$(PY) -m pytest tests/ -q
+
+test-v:         ## Тесты с именами и временем
+	$(PY) -m pytest tests/ -v --durations=10
+
+lint:           ## Линтер (ruff): стиль, ошибки, безопасность
+	$(PY) -m ruff check .
+
+lint-fix:       ## Линтер с автоисправлением
+	$(PY) -m ruff check . --fix
+
+audit:          ## Уязвимости в зависимостях
+	$(PY) -m pip_audit --requirement requirements.txt --strict
+
+secrets:        ## Поиск секретов и лишних файлов в репозитории
+	@bash scripts/check-secrets.sh
+	@bash scripts/check-repo.sh
+
+ci:             ## Всё, что гоняет конвейер: линтер, тесты, секреты, аудит
+	@$(MAKE) lint
+	@$(MAKE) test
+	@$(MAKE) secrets
+	@$(MAKE) audit
 
 check:          ## Быстрая проверка синтаксиса всех модулей
 	$(PY) -m compileall -q app tests migrations >/dev/null && echo "синтаксис в порядке"

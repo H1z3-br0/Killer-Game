@@ -1,12 +1,17 @@
 """Демо-данные для визуальной проверки: игра в разгаре."""
-import os, sys, tempfile
+import os
+import sys
+import tempfile
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-DEMO = Path(os.environ.get("DEMO_DB", "/tmp/killer_demo.db"))
+DEMO = Path(os.environ.get("DEMO_DB")
+            or Path(tempfile.gettempdir()) / "killer_demo.db")
 DEMO.unlink(missing_ok=True)
 os.environ["KILLER_DB"] = str(DEMO)
 
-from app import config, db, game_logic, repo, security  # noqa: E402
+from app import db, game_logic, repo, security  # noqa: E402
+
 db.migrate()
 
 people = [("Ведущий", "Игорь", "igor"), ("Соколова", "Анна", "anna"),

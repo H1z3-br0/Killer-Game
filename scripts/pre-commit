@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# Прогоняет тесты перед коммитом. Ставится командой `make hooks`.
-# Пропустить разово: git commit --no-verify
+# Проверки перед коммитом: линтер, секреты, состав репозитория, тесты.
+# Ставится командой `make hooks`. Пропустить разово: git commit --no-verify
 set -e
 cd "$(git rev-parse --show-toplevel)"
 
 if [ ! -x .venv/bin/python ]; then
-  echo "pre-commit: окружения нет, пропускаю тесты"
+  echo "pre-commit: окружения нет, пропускаю"
   exit 0
 fi
 
+echo "pre-commit: линтер…"
+.venv/bin/ruff check . --quiet
+
+echo "pre-commit: секреты и состав…"
+bash scripts/check-secrets.sh >/dev/null
+bash scripts/check-repo.sh >/dev/null
+
 echo "pre-commit: тесты…"
-.venv/bin/python tests/test_flow.py >/dev/null
-.venv/bin/python tests/test_service.py >/dev/null
-echo "pre-commit: в порядке"
+.venv/bin/python -m pytest tests/ -q --no-header >/dev/null
+
+echo "pre-commit: всё в порядке"

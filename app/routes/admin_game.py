@@ -11,7 +11,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
 from .. import auth, config, game_logic, repo, security, settings_store
-from ..db import audit, execute, now, query, query_one, transaction
+from ..db import audit, execute, now, query, transaction
 from ..web import redirect, render
 
 router = APIRouter(prefix="/manage")
@@ -31,7 +31,7 @@ def owned_game(request: Request, game_id: int):
 def new_game_form(request: Request):
     user = auth.require_user(request)
     if not settings_store.get("allow_anyone_create_game") and user["role"] != "sysadmin":
-        return render(request, "error.html", code=403,
+        return render(request, "error.html", status_code=403, code=403,
                       message="Создавать игры может только сисадмин.")
     return render(request, "game_new.html", colors=config.GAME_COLORS)
 
@@ -46,7 +46,8 @@ def new_game(request: Request, csrf: str = Form(""), title: str = Form(""),
     auth.check_csrf(request, csrf)
     user = auth.require_user(request)
     if not settings_store.get("allow_anyone_create_game") and user["role"] != "sysadmin":
-        return render(request, "error.html", code=403, message="Создавать игры может только сисадмин.")
+        return render(request, "error.html", status_code=403, code=403,
+                      message="Создавать игры может только сисадмин.")
     title = title.strip()
     if not title:
         return render(request, "game_new.html", colors=config.GAME_COLORS,
@@ -75,9 +76,11 @@ def new_game(request: Request, csrf: str = Form(""), title: str = Form(""),
 def manage_game(request: Request, game_id: int):
     user, game = owned_game(request, game_id)
     if game is None:
-        return render(request, "error.html", code=404, message="Игра не найдена.")
+        return render(request, "error.html", status_code=404, code=404,
+                      message="Игра не найдена.")
     if game is False:
-        return render(request, "error.html", code=403, message="Это не ваша игра.")
+        return render(request, "error.html", status_code=403, code=403,
+                      message="Это не ваша игра.")
 
     me = repo.my_participation(game_id, user["id"])
     # Играющий админ видит только числа: даже обезличенная строка
@@ -110,7 +113,7 @@ def manage_game(request: Request, game_id: int):
 def invite(request: Request, game_id: int, csrf: str = Form(""),
            user_ids: list[str] = Form(default=[]), mode: str = Form("selected")):
     auth.check_csrf(request, csrf)
-    user, game = owned_game(request, game_id)
+    _user, game = owned_game(request, game_id)
     if not game:
         return redirect("/", "Игра недоступна.", "error")
     if game["status"] not in ("draft", "recruiting"):
@@ -169,7 +172,7 @@ def remove_participant(request: Request, game_id: int, participant_id: int,
                        csrf: str = Form("")):
     """Убрать из состава можно только до старта — после круг трогает сисадмин."""
     auth.check_csrf(request, csrf)
-    user, game = owned_game(request, game_id)
+    _user, game = owned_game(request, game_id)
     if not game or game["status"] not in ("draft", "recruiting"):
         return redirect(f"/manage/games/{game_id}", "После старта состав меняет сисадмин.", "error")
     execute("DELETE FROM participant WHERE id = ? AND game_id = ?", (participant_id, game_id))
@@ -180,7 +183,7 @@ def remove_participant(request: Request, game_id: int, participant_id: int,
 def change_visibility(request: Request, game_id: int, csrf: str = Form(""),
                       visibility: str = Form("open")):
     auth.check_csrf(request, csrf)
-    user, game = owned_game(request, game_id)
+    _user, game = owned_game(request, game_id)
     if not game:
         return redirect("/", "Игра недоступна.", "error")
     if game["status"] not in ("draft", "recruiting"):
@@ -210,7 +213,7 @@ def start(request: Request, game_id: int, csrf: str = Form("")):
 @router.post("/games/{game_id}/pause")
 def pause(request: Request, game_id: int, csrf: str = Form("")):
     auth.check_csrf(request, csrf)
-    user, game = owned_game(request, game_id)
+    _user, game = owned_game(request, game_id)
     if not game:
         return redirect("/", "Игра недоступна.", "error")
     if game["status"] == "running":
@@ -265,8 +268,8 @@ def toggle_reveal(request: Request, game_id: int, csrf: str = Form("")):
     new_value = 0 if game["reveal_after_finish"] else 1
     execute("UPDATE game SET reveal_after_finish = ? WHERE id = ?", (new_value, game_id))
     audit(user["id"], "game_reveal_toggled", "game", game_id, {"reveal": new_value})
-    return redirect(f"/manage/games/{game_id}",
-                    "Разбор открыт для всех." if new_value else "Разбор снова только для участников.")
+    return redirect(f"/manage/games/{game_id}", "Разбор открыт для всех."
+                    if new_value else "Разбор снова только для участников.")
 
 
 @router.post("/games/{game_id}/request-withdraw")

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from typing import Any, Iterator
+from datetime import UTC, datetime
+from typing import Any
 
 from . import config
 
@@ -20,7 +21,7 @@ _write_lock = threading.RLock()
 
 def now() -> str:
     """Единая точка времени: всегда UTC, ISO-8601 с секундами."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def connect() -> sqlite3.Connection:
@@ -34,6 +35,14 @@ def connect() -> sqlite3.Connection:
         conn.execute("PRAGMA busy_timeout=30000")
         _local.conn = conn
     return conn
+
+
+def reset_connection() -> None:
+    """Закрыть соединение потока — нужно тестам, чтобы сменить файл базы."""
+    conn = getattr(_local, "conn", None)
+    if conn is not None:
+        conn.close()
+        _local.conn = None
 
 
 @contextmanager
@@ -80,11 +89,11 @@ def migrate() -> list[str]:
     for path in sorted(config.MIGRATIONS_DIR.glob("*.sql")):
         if path.name in applied:
             continue
-        # executescript управляет транзакцией сам, поэтому отметку о применении
-        # вписываем в тот же скрипт: миграция и её регистрация должны быть
-        # неразделимы, иначе при сбое она применится дважды.
-        script = "BEGIN IMMEDIATE;\n{}\nINSERT INTO schema_migration (name, applied_at) VALUES ('{}', '{}');\nCOMMIT;".format(
-            path.read_text(encoding="utf-8"), path.name.replace("'", "''"), now())
+        # Миграция и отметка о её применении неразделимы: при сбое она не
+        # должна примениться дважды.
+        script = "BEGIN IMMEDIATE;\n{}\nINSERT INTO schema_migration (name, applied_at)"\
+                 " VALUES ('{}', '{}');\nCOMMIT;".format(
+                     path.read_text(encoding="utf-8"), path.name.replace("'", "''"), now())
         with _write_lock:
             conn.executescript(script)
         fresh.append(path.name)

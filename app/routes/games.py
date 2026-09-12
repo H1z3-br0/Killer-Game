@@ -79,7 +79,8 @@ def game_page(request: Request, game_id: int):
     user = auth.require_user(request)
     game = repo.game_by_id(game_id)
     if game is None:
-        return render(request, "error.html", code=404, message="Игра не найдена.")
+        return render(request, "error.html", status_code=404, code=404,
+                      message="Игра не найдена.")
     me = repo.my_participation(game_id, user["id"])
     if not visible_to(game, me, user):
         # Факт игры публичен, содержание — нет.

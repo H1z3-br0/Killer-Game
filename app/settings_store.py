@@ -6,7 +6,6 @@ import json
 from . import config
 from .db import execute, now, query
 
-
 _cache: dict | None = None
 
 
@@ -16,6 +15,12 @@ def all_settings() -> dict:
         stored = {r["key"]: json.loads(r["value_json"]) for r in query("SELECT * FROM setting")}
         _cache = {**config.DEFAULT_SETTINGS, **stored}
     return _cache
+
+
+def reset_cache() -> None:
+    """Сбросить кеш настроек — тестам и после восстановления базы."""
+    global _cache
+    _cache = None
 
 
 def get(key: str):

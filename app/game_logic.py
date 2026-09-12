@@ -203,17 +203,25 @@ def start_game(conn: sqlite3.Connection, game_id: int, actor_user_id: int) -> di
 # ─────────────────────────── выбытие ───────────────────────────
 
 
-def cancel_claims_of(conn: sqlite3.Connection, participant_id: int, reason: str) -> None:
+def cancel_claims_of(conn: sqlite3.Connection, participant_id: int) -> None:
     """Гасим все незакрытые заявки, где участник — киллер или жертва.
 
     Ради случая: A заявил на B и ждёт подтверждения, а собственный охотник
     устраняет самого A. Не погасив заявку, мы дали бы B подтвердить устранение
     от выбывшего и пересшили бы круг дважды.
+
+    Причину пишем по роли выбывшего: вторая сторона должна прочитать, что
+    произошло на самом деле, а не гадать.
     """
+    stamp = now()
     conn.execute(
-        "UPDATE kill_claim SET status = 'cancelled', cancel_reason = ?, resolved_at = ?"
-        " WHERE status = 'pending' AND (killer_id = ? OR victim_id = ?)",
-        (reason, now(), participant_id, participant_id))
+        "UPDATE kill_claim SET status = 'cancelled', cancel_reason = 'killer_eliminated',"
+        " resolved_at = ? WHERE status = 'pending' AND killer_id = ?",
+        (stamp, participant_id))
+    conn.execute(
+        "UPDATE kill_claim SET status = 'cancelled', cancel_reason = 'victim_eliminated',"
+        " resolved_at = ? WHERE status = 'pending' AND victim_id = ?",
+        (stamp, participant_id))
 
 
 def eliminate(conn: sqlite3.Connection, game_id: int, victim_id: int,
@@ -269,7 +277,7 @@ def eliminate(conn: sqlite3.Connection, game_id: int, victim_id: int,
         ("dead" if event_type == "kill_confirmed" else "withdrawn",
          now(), living_before, victim_id))
 
-    cancel_claims_of(conn, victim_id, "victim_eliminated")
+    cancel_claims_of(conn, victim_id)
 
     if killer_id:
         conn.execute("UPDATE participant SET kills_count = kills_count + 1 WHERE id = ?",
@@ -431,7 +439,8 @@ def confirm_claim(conn: sqlite3.Connection, claim_id: int, confirming_participan
     if game["status"] != "running":
         raise ValueError("игра сейчас не идёт")
 
-    killer = conn.execute("SELECT * FROM participant WHERE id = ?", (claim["killer_id"],)).fetchone()
+    killer = conn.execute("SELECT * FROM participant WHERE id = ?", (claim["killer_id"],
+                          )).fetchone()
     if killer["status"] != "alive" or killer["target_id"] != claim["victim_id"]:
         conn.execute("UPDATE kill_claim SET status = 'cancelled', cancel_reason = ?,"
                      " resolved_at = ? WHERE id = ?", ("target_changed", now(), claim_id))
@@ -455,7 +464,6 @@ def revert_last_event(conn: sqlite3.Connection, game_id: int) -> str:
         raise ValueError("это событие не откатывается")
 
     victim_id = ev["subject_participant_id"]
-    victim = conn.execute("SELECT * FROM participant WHERE id = ?", (victim_id,)).fetchone()
 
     # Возвращаем жертву в круг на её прежнее место.
     edge = conn.execute(

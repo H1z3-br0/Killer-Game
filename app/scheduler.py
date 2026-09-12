@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from . import config, game_logic
 from .db import audit, execute, now, query, transaction
@@ -44,7 +44,7 @@ RATE_HIT_DAYS = 1
 
 def _ago(days: int) -> str:
     """Момент N дней назад в том же формате, в каком мы храним время."""
-    return (datetime.now(timezone.utc) - timedelta(days=days)).replace(
+    return (datetime.now(UTC) - timedelta(days=days)).replace(
         microsecond=0).isoformat()
 
 
@@ -59,7 +59,7 @@ def cleanup() -> int:
     ):
         try:
             removed += execute(sql, params).rowcount
-        except Exception:
+        except Exception:  # noqa: S110 — журнал ошибок не должен всё ронять
             pass
     return removed
 
@@ -82,7 +82,7 @@ def log_error(path: str, message: str) -> None:
         execute("INSERT INTO error_log (path, message, traceback, created_at)"
                 " VALUES (?, ?, ?, ?)", (path[:200], message.splitlines()[-1][:300],
                                          message[-4000:], now()))
-    except Exception:
+    except Exception:  # noqa: S110 — журнал ошибок не должен всё ронять
         pass
 
 

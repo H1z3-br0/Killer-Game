@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 from .. import auth, config, repo, security, settings_store
 from ..db import audit, execute, now, query_one
@@ -65,7 +65,8 @@ def register(request: Request, csrf: str = Form(""), login: str = Form(""),
     user_id = cur.lastrowid
     audit(user_id, "register", "user", user_id)
     response = redirect("/", "Добро пожаловать. Аккаунт создан.")
-    auth.set_session_cookie(response, auth.create_session(user_id, request.headers.get("user-agent", "")))
+    auth.set_session_cookie(response, auth.create_session(user_id, request.headers.get("user-agent",
+                            "")))
     return response
 
 
@@ -93,7 +94,8 @@ def login(request: Request, csrf: str = Form(""), login: str = Form(""),
                       error="Учётная запись заблокирована. Напишите сисадмину.")
 
     response = redirect("/", f"С возвращением, {user['first_name']}.")
-    auth.set_session_cookie(response, auth.create_session(user["id"], request.headers.get("user-agent", "")))
+    auth.set_session_cookie(response, auth.create_session(user["id"],
+                            request.headers.get("user-agent", "")))
     return response
 
 
@@ -151,7 +153,8 @@ def device_login(request: Request, csrf: str = Form(""), login: str = Form(""),
     execute("UPDATE device_code SET used_at = ? WHERE id = ?", (now(), row["id"]))
     audit(user["id"], "login_device_code", "user", user["id"])
     response = redirect("/profile", "Вы вошли. Смените пароль, если забыли его.")
-    auth.set_session_cookie(response, auth.create_session(user["id"], request.headers.get("user-agent", "")))
+    auth.set_session_cookie(response, auth.create_session(user["id"],
+                            request.headers.get("user-agent", "")))
     return response
 
 
@@ -211,5 +214,6 @@ def reset_login(request: Request, csrf: str = Form(""), login: str = Form(""),
             " WHERE user_id = ? AND type = 'password' AND status = 'open'", (now(), user["id"]))
     audit(user["id"], "password_reset_used", "user", user["id"])
     response = redirect("/", "Пароль изменён.")
-    auth.set_session_cookie(response, auth.create_session(user["id"], request.headers.get("user-agent", "")))
+    auth.set_session_cookie(response, auth.create_session(user["id"],
+                            request.headers.get("user-agent", "")))
     return response

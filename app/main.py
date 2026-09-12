@@ -48,8 +48,10 @@ async def guard(request: Request, call_next):
         if allow:
             host = request.client.host if request.client else ""
             try:
-                inside = any(ipaddress.ip_address(host) in ipaddress.ip_network(net.strip(), strict=False)
-                             for net in allow.split(",") if net.strip())
+                address = ipaddress.ip_address(host)
+                inside = any(
+                    address in ipaddress.ip_network(net.strip(), strict=False)
+                    for net in allow.split(",") if net.strip())
             except ValueError:
                 inside = True  # некорректная настройка не должна запирать сервис
             if not inside:
@@ -64,7 +66,7 @@ async def guard(request: Request, call_next):
         try:
             db.execute("INSERT INTO request_stat (day, hits) VALUES (?, 1)"
                        " ON CONFLICT(day) DO UPDATE SET hits = hits + 1", (db.now()[:10],))
-        except Exception:
+        except Exception:  # noqa: S110 — статистика не важнее ответа
             pass
     return response
 

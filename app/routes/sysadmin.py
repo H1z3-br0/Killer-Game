@@ -57,7 +57,8 @@ def uptime_text() -> str:
 @router.get("/users", response_class=HTMLResponse)
 def users(request: Request, q: str = "", filter: str = ""):
     auth.require_sysadmin(request)
-    sql = ("SELECT u.*, (SELECT COUNT(*) FROM participant p JOIN game g ON g.id = p.game_id"
+    sql = ("SELECT u.*,"
+           " (SELECT COUNT(*) FROM participant p JOIN game g ON g.id = p.game_id"
            " WHERE p.user_id = u.id AND g.status IN ('running','paused','recruiting')"
            " AND p.status IN ('invited','joined','alive')) AS active_games FROM user u WHERE 1=1")
     params: list = []
@@ -101,7 +102,8 @@ def block_user(request: Request, user_id: int, csrf: str = Form("")):
                 (user_id,)).fetchall()
             for r in rows:
                 game_logic.eliminate(conn, r["game_id"], r["id"], "participant_withdrawn",
-                                     actor_user_id=admin["id"], reason="учётная запись заблокирована")
+                                     actor_user_id=admin["id"],
+                                            reason="учётная запись заблокирована")
                 withdrawn += 1
         audit(admin["id"], f"user_{new_status}", "user", user_id,
               {"withdrawn_from": withdrawn}, conn=conn)
@@ -245,7 +247,8 @@ def games(request: Request):
         "SELECT g.*, u.last_name, u.first_name, u.middle_name,"
         " (SELECT COUNT(*) FROM participant p WHERE p.game_id = g.id AND p.status = 'alive')"
         " AS alive FROM game g LEFT JOIN user u ON u.id = g.admin_user_id ORDER BY g.id DESC")
-    return render(request, "sysadmin/games.html", page="games", rows=rows, display_name=repo.display_name)
+    return render(request, "sysadmin/games.html", page="games", rows=rows,
+                  display_name=repo.display_name)
 
 
 @router.get("/games/{game_id}", response_class=HTMLResponse)
@@ -316,7 +319,8 @@ def transfer(request: Request, game_id: int, csrf: str = Form(""), user_id: str 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request):
     auth.require_sysadmin(request)
-    return render(request, "sysadmin/settings.html", page="settings", values=settings_store.all_settings())
+    return render(request, "sysadmin/settings.html", page="settings",
+                  values=settings_store.all_settings())
 
 
 @router.post("/settings")
@@ -326,12 +330,18 @@ def settings_save(request: Request, csrf: str = Form(""), platform_name: str = F
                   allow_multiple_active_games: str = Form(""), subnet_allowlist: str = Form("")):
     auth.check_csrf(request, csrf)
     admin = auth.require_sysadmin(request)
-    settings_store.set_value("platform_name", platform_name.strip()[:40] or "Киллер", admin["id"])
-    settings_store.set_value("support_telegram", support_telegram.strip().lstrip("@")[:60], admin["id"])
-    settings_store.set_value("maintenance_message", maintenance_message.strip()[:200], admin["id"])
-    settings_store.set_value("allow_anyone_create_game", bool(allow_anyone_create_game), admin["id"])
-    settings_store.set_value("allow_multiple_active_games", bool(allow_multiple_active_games), admin["id"])
-    settings_store.set_value("subnet_allowlist", subnet_allowlist.strip()[:200], admin["id"])
+    settings_store.set_value("platform_name", platform_name.strip()[:40] or "Киллер",
+                             admin["id"])
+    settings_store.set_value("support_telegram",
+                             support_telegram.strip().lstrip("@")[:60], admin["id"])
+    settings_store.set_value("maintenance_message", maintenance_message.strip()[:200],
+                             admin["id"])
+    settings_store.set_value("allow_anyone_create_game",
+                             bool(allow_anyone_create_game), admin["id"])
+    settings_store.set_value("allow_multiple_active_games",
+                             bool(allow_multiple_active_games), admin["id"])
+    settings_store.set_value("subnet_allowlist", subnet_allowlist.strip()[:200],
+                             admin["id"])
     audit(admin["id"], "settings_changed", "setting")
     return redirect("/admin/settings", "Настройки сохранены.")
 
@@ -339,7 +349,8 @@ def settings_save(request: Request, csrf: str = Form(""), platform_name: str = F
 @router.get("/backups", response_class=HTMLResponse)
 def backups(request: Request):
     auth.require_sysadmin(request)
-    files = sorted(config.BACKUP_DIR.glob("*.db"), reverse=True) if config.BACKUP_DIR.exists() else []
+    files = sorted(config.BACKUP_DIR.glob("*.db"),
+                   reverse=True) if config.BACKUP_DIR.exists() else []
     rows = [{"name": f.name, "size": f.stat().st_size // 1024,
              "at": f.stat().st_mtime} for f in files]
     running = query("SELECT id, title FROM game WHERE status IN ('running','paused')")
@@ -421,7 +432,8 @@ def user_card(request: Request, user_id: int):
 def duplicates(request: Request):
     """Похожие ФИО: опечатка при регистрации рождает тихий дубль."""
     auth.require_sysadmin(request)
-    return render(request, "sysadmin/duplicates.html", page="dupes", pairs=repo.possible_duplicates())
+    return render(request, "sysadmin/duplicates.html", page="dupes",
+                  pairs=repo.possible_duplicates())
 
 
 @router.post("/users/{keep_id}/merge")

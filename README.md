@@ -37,7 +37,9 @@ app/
   templates/       Jinja2, русский интерфейс, мобильный по умолчанию
   static/          app.css, app.js — без внешних зависимостей
 migrations/        нумерованные .sql, применяются по одному разу
-tests/test_flow.py сквозной сценарий от регистрации до победителя
+tests/           149 тестов на pytest (см. ниже)
+scripts/         проверки для pre-commit и конвейера
+.github/         GitHub Actions
 ```
 
 ## Главные правила, зашитые в код
