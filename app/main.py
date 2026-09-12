@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import time
 import traceback
 from contextlib import asynccontextmanager
@@ -11,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, scheduler, settings_store
+from . import config, db, scheduler
 from .routes import admin_game, auth_routes, games, sysadmin
 from .web import render
 
@@ -41,28 +40,16 @@ app.include_router(sysadmin.router)
 
 @app.middleware("http")
 async def guard(request: Request, call_next):
-    """Ограничение по подсети, счётчик обращений и журнал ошибок."""
+    """Счётчик обращений и журнал ошибок приложения."""
     path = request.url.path
-    if not path.startswith(("/static", "/healthz")):
-        allow = settings_store.get("subnet_allowlist")
-        if allow:
-            host = request.client.host if request.client else ""
-            try:
-                address = ipaddress.ip_address(host)
-                inside = any(
-                    address in ipaddress.ip_network(net.strip(), strict=False)
-                    for net in allow.split(",") if net.strip())
-            except ValueError:
-                inside = True  # некорректная настройка не должна запирать сервис
-            if not inside:
-                return JSONResponse(
-                    {"detail": "Сервис доступен только из рабочей сети."}, status_code=403)
     try:
         response = await call_next(request)
     except Exception:
         scheduler.log_error(path, traceback.format_exc())
         raise
     if not path.startswith("/static"):
+        # Счётчик обращений — украшение дашборда: если база занята записью
+        # игрового события, лучше потерять единицу статистики, чем ответ.
         try:
             db.execute("INSERT INTO request_stat (day, hits) VALUES (?, 1)"
                        " ON CONFLICT(day) DO UPDATE SET hits = hits + 1", (db.now()[:10],))

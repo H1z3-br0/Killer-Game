@@ -12,4 +12,5 @@ fi
 PORT="${PORT:-8000}"
 echo "Киллер запускается на порту $PORT"
 echo "Адрес для телефонов: http://$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}'):$PORT"
-exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1
+exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1 \
+  --proxy-headers --forwarded-allow-ips 127.0.0.1

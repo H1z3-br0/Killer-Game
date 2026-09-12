@@ -34,7 +34,6 @@ DEFAULT_SETTINGS = {
     "allow_anyone_create_game": True,
     "allow_multiple_active_games": True,
     "maintenance_message": "",
-    "subnet_allowlist": "",  # пусто = выключено
 }
 
 GAME_COLORS = [

@@ -15,6 +15,10 @@
     <string>--host</string><string>0.0.0.0</string>
     <string>--port</string><string>8000</string>
     <string>--workers</string><string>1</string>
+    <!-- Если перед сервисом стоит nginx: доверяем его заголовкам,
+         иначе сервис увидит у всех один адрес 127.0.0.1 -->
+    <string>--proxy-headers</string>
+    <string>--forwarded-allow-ips</string><string>127.0.0.1</string>
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/ЗАМЕНИТЕ/aesc_services/Assassin</string>

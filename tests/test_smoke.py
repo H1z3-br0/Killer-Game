@@ -68,16 +68,3 @@ def test_game_state_endpoint(game_factory, people):
     data = people["anna"].get(f"/games/{gid}/state").json()
     assert data["alive"] == 4 and data["status"] == "running"
     assert "target" not in data, "состояние не должно раскрывать цель"
-
-
-def test_subnet_guard(client, monkeypatch):
-    from fastapi.testclient import TestClient
-
-    from app import settings_store
-    from app.main import app
-
-    settings_store.set_value("subnet_allowlist", "10.99.0.0/24")
-    outside = TestClient(app, client=("192.168.5.7", 5000), follow_redirects=True)
-    inside = TestClient(app, client=("10.99.0.15", 5000), follow_redirects=True)
-    assert outside.get("/login").status_code == 403
-    assert inside.get("/login").status_code == 200

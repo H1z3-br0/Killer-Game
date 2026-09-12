@@ -23,8 +23,6 @@
     </div>
     <label style="margin-top:13px"><span>Баннер обслуживания</span>
       <input name="maintenance_message" value="{{ values.maintenance_message }}" placeholder="пусто — баннера нет"></label>
-    <label><span>Разрешённая подсеть</span>
-      <input name="subnet_allowlist" value="{{ values.subnet_allowlist }}" placeholder="пусто — выключено"></label>
     <label class="check">
       <input type="checkbox" name="allow_anyone_create_game" {{ 'checked' if values.allow_anyone_create_game }}>
       <span>Игры может создавать любой</span></label>

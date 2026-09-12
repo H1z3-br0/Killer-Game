@@ -1,17 +1,21 @@
 # systemd-юнит для Linux-сервера.
 #   sudo cp deploy/killer.service /etc/systemd/system/
 #   sudo systemctl enable --now killer
+# Путь и пользователь — под реальное размещение. Каталог проекта и data/
+# должны принадлежать этому же пользователю, иначе сервис не запишет базу.
 [Unit]
 Description=Киллер — сервис игры на выбывание
 After=network.target
 
 [Service]
 Type=simple
-User=killer
-WorkingDirectory=/opt/killer
-ExecStart=/opt/killer/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+User=aesc
+WorkingDirectory=/var/www/Killer-Game
+ExecStart=/var/www/Killer-Game/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+          --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=always
 RestartSec=5
+# Без nginx слушайте 0.0.0.0 вместо 127.0.0.1 — иначе снаружи не достучаться.
 # База и бэкапы лежат рядом с кодом; при переносе укажите пути явно:
 # Environment=KILLER_DB=/var/lib/killer/killer.db
 # Environment=KILLER_BACKUPS=/var/lib/killer/backups

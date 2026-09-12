@@ -327,7 +327,7 @@ def settings_page(request: Request):
 def settings_save(request: Request, csrf: str = Form(""), platform_name: str = Form("Киллер"),
                   support_telegram: str = Form(""), maintenance_message: str = Form(""),
                   allow_anyone_create_game: str = Form(""),
-                  allow_multiple_active_games: str = Form(""), subnet_allowlist: str = Form("")):
+                  allow_multiple_active_games: str = Form("")):
     auth.check_csrf(request, csrf)
     admin = auth.require_sysadmin(request)
     settings_store.set_value("platform_name", platform_name.strip()[:40] or "Киллер",
@@ -340,8 +340,6 @@ def settings_save(request: Request, csrf: str = Form(""), platform_name: str = F
                              bool(allow_anyone_create_game), admin["id"])
     settings_store.set_value("allow_multiple_active_games",
                              bool(allow_multiple_active_games), admin["id"])
-    settings_store.set_value("subnet_allowlist", subnet_allowlist.strip()[:200],
-                             admin["id"])
     audit(admin["id"], "settings_changed", "setting")
     return redirect("/admin/settings", "Настройки сохранены.")
 
