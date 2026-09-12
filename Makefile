@@ -1,5 +1,5 @@
 # Короткие команды для разработки и эксплуатации.
-.PHONY: help install run test lint audit secrets ci check backup clean hooks
+.PHONY: help install install-dev run test lint audit secrets ci check backup clean hooks
 
 PY := .venv/bin/python
 PORT ?= 8000
@@ -7,10 +7,15 @@ PORT ?= 8000
 help:           ## Показать список команд
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/ —/' | sort
 
-install:        ## Создать окружение и поставить зависимости
+install:        ## Окружение для сервера (только то, что нужно в бою)
 	python3 -m venv .venv
 	.venv/bin/pip install --quiet --upgrade pip
 	.venv/bin/pip install --quiet -r requirements.txt
+
+install-dev:    ## Окружение разработчика: плюс тесты, линтер, аудит
+	python3 -m venv .venv
+	.venv/bin/pip install --quiet --upgrade pip
+	.venv/bin/pip install --quiet -r requirements-dev.txt
 
 run:            ## Запустить сервис (PORT=8000 по умолчанию)
 	PORT=$(PORT) ./run.sh

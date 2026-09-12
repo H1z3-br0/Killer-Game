@@ -1,5 +1,7 @@
 # Инструменты разработки и конвейера — на сервере не нужны.
 -r requirements.txt
+
 pytest>=8.0
+httpx2>=2.0      # нужен starlette.testclient: без него тесты не стартуют
 ruff>=0.5
 pip-audit>=2.7

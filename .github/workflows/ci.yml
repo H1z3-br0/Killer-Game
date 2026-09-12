@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GITLEAKS_VERSION: "8.24.3"
+
 jobs:
   tests:
     name: Тесты и линтер
@@ -24,12 +27,12 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Зависимости
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest ruff
+          pip install -r requirements-dev.txt
 
       - name: Линтер
         run: ruff check .
@@ -37,17 +40,8 @@ jobs:
       - name: Тесты
         run: pytest tests/ -q
 
-      - name: Схема применяется на чистой базе
-        run: |
-          python - <<'PY'
-          import os, tempfile, pathlib
-          os.environ["KILLER_DB"] = str(pathlib.Path(tempfile.mkdtemp()) / "ci.db")
-          from app import db
-          applied = db.migrate()
-          assert applied, "миграции не применились"
-          assert db.migrate() == [], "миграция применилась повторно"
-          print("схема в порядке:", applied)
-          PY
+      - name: Схема на чистой базе
+        run: python scripts/check-schema.py
 
   security:
     name: Секреты и зависимости
@@ -55,16 +49,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0        # gitleaks смотрит всю историю, а не только верхушку
+          fetch-depth: 0        # секреты ищем по всей истории, а не в верхушке
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Поиск секретов в истории
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Запускаем бинарник напрямую: сторонний action строит диапазон
+          # «родитель первого коммита..HEAD», которого у нового репозитория нет.
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --redact --no-banner --exit-code 1
 
       - name: Уязвимости в зависимостях
         run: |
@@ -72,4 +69,6 @@ jobs:
           pip-audit --requirement requirements.txt --strict
 
       - name: В репозиторий не попало лишнее
-        run: bash scripts/check-repo.sh
+        run: |
+          bash scripts/check-repo.sh
+          bash scripts/check-secrets.sh

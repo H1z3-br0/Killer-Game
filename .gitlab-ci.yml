@@ -13,9 +13,10 @@ variables:
 тесты:
   stage: check
   script:
-    - pip install -r requirements.txt pytest ruff
+    - pip install -r requirements-dev.txt
     - ruff check .
     - pytest tests/ -q
+    - python scripts/check-schema.py
 
 секреты-и-зависимости:
   stage: check
