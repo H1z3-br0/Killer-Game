@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Сисадмин{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px;margin-inline:auto">
+  <h2>Написать сисадмину</h2>
+  {% if error %}<div class="msg bad">{{ error }}</div>{% endif %}
+  <form method="post" action="/support">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label><span>Тема</span>
+      <select name="type_">
+        <option value="password">Забыл пароль</option>
+        <option value="name_conflict">Совпало ФИО</option>
+        <option value="other">Другое</option>
+      </select>
+    </label>
+    <label><span>Ваше ФИО</span><input name="claimed_name" required></label>
+    <label><span>Что случилось</span><textarea name="message"></textarea></label>
+    <button class="primary wide">Отправить</button>
+  </form>
+</div>
+{% endblock %}

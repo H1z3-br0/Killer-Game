@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}{{ game.title }}{% endblock %}
+{% block content %}
+
+<div class="card" id="gameRoot" style="--accent:{{ game.color }}"
+     data-state-url="{% if me %}/games/{{ game.id }}/state{% endif %}"
+     data-alive="{{ counters.alive }}" data-claim="{{ claim.id if claim else '' }}">
+  <div class="head" style="margin-bottom:8px">
+    <h2 style="font-size:22px">{{ game.title }}</h2>
+    {% if is_admin %}<a class="btn sm ghost" href="/manage/games/{{ game.id }}">Ведение</a>{% endif %}
+  </div>
+  <div class="meta" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span class="tag {{ 'live' if game.status == 'running' else ('wait' if game.status in ('draft','recruiting','paused') else 'plain') }}">
+      {{ {'draft':'набор','recruiting':'набор','running':'идёт','paused':'пауза',
+          'finished':'завершена','void':'не состоялась'}[game.status] }}</span>
+    <span class="s dim">в игре {{ counters.alive }}</span>
+    {% if counters.dead + counters.withdrawn %}<span class="s dim">выбыло {{ counters.dead + counters.withdrawn }}</span>{% endif %}
+    {% if game.visibility == 'private' %}<span class="tag plain">закрытая</span>{% endif %}
+    {% if game.deadline_at %}<span class="s dim">до {{ game.deadline_at }}</span>{% endif %}
+  </div>
+</div>
+
+{% if claim %}
+<div class="claim">
+  <h2>{{ 'Заявка на вас' if claim.created_by != me.id else 'Заявка подана' }}</h2>
+  <p class="who">{{ claim.killer_name }} <span style="color:var(--signal)">→</span> {{ claim.victim_name }}</p>
+  {% if claim.created_by == me.id %}
+    <div class="acts">
+      <span class="s dim">Ждём вторую сторону</span>
+      <form method="post" action="/claims/{{ claim.id }}/cancel" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Отменить</button>
+      </form>
+    </div>
+  {% else %}
+    <form method="post" action="/claims/{{ claim.id }}/confirm" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Подтвердить</button>
+    </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if me and me.status == 'alive' and game.status in ('running','paused') %}
+<div class="card">
+  <h2>Ваша цель</h2>
+  <div class="target" id="targetBox" data-url="/games/{{ game.id }}/target/reveal" data-csrf="{{ csrf }}">
+    <div class="name" id="targetName"></div>
+    <div class="sub" id="targetSub"></div>
+    <div class="bar">Нажмите, чтобы открыть</div>
+    <div class="countdown"></div>
+  </div>
+  {% if game.status == 'running' and not claim %}
+  <div class="sticky">
+    <form method="post" action="/games/{{ game.id }}/claims" class="inline" style="flex:1">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="primary wide">Я устранил цель</button>
+    </form>
+    <form method="post" action="/games/{{ game.id }}/claims" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="as_victim" value="1">
+      <button class="wide">Меня устранили</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% elif me and me.status in ('dead','withdrawn') %}
+<div class="card">
+  <h2>Вы выбыли</h2>
+  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+    <div><span class="lbl">Место</span><b>{{ me.place or '—' }}</b></div>
+    <div><span class="lbl">Устранений</span><b>{{ me.kills_count }}</b></div>
+    <div><span class="lbl">Осталось</span><b>{{ counters.alive }}</b></div>
+  </div>
+  <p class="s dim" style="margin:14px 0 0">Следите за игрой — итоги откроются в финале.</p>
+</div>
+
+{% elif me and me.status == 'invited' %}
+<div class="card">
+  <h2>Приглашение</h2>
+  <p class="s dim">Молчание к старту считается отказом.</p>
+  <div class="acts" style="margin-top:14px">
+    <form method="post" action="/games/{{ game.id }}/join" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Участвую</button>
+    </form>
+    <form method="post" action="/games/{{ game.id }}/decline" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost">Отказаться</button>
+    </form>
+  </div>
+</div>
+
+{% elif me and me.status == 'joined' %}
+<div class="card">
+  <h2>Вы в составе</h2>
+  <p class="s dim">Цель появится, когда ведущий начнёт игру.</p>
+  <form method="post" action="/games/{{ game.id }}/decline" class="inline" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Передумал</button>
+  </form>
+</div>
+{% endif %}
+
+{% set rules = game.rules_json | from_json %}
+{% if rules.weapon or rules.safe_zones or rules.quiet_from or rules.no_weekends %}
+<div class="card">
+  <h2>Правила</h2>
+  <ul class="feed">
+    {% if rules.weapon %}<li><span class="lbl" style="min-width:90px">Оружие</span><span>{{ rules.weapon }}</span></li>{% endif %}
+    {% if rules.safe_zones %}<li><span class="lbl" style="min-width:90px">Сейф-зоны</span><span>{{ rules.safe_zones }}</span></li>{% endif %}
+    {% if rules.quiet_from and rules.quiet_to %}<li><span class="lbl" style="min-width:90px">Нельзя</span><span>с {{ rules.quiet_from }} до {{ rules.quiet_to }}{% if rules.no_weekends %}, и по выходным{% endif %}</span></li>
+    {% elif rules.no_weekends %}<li><span class="lbl" style="min-width:90px">Нельзя</span><span>по выходным</span></li>{% endif %}
+  </ul>
+</div>
+{% endif %}
+
+{% if by_day %}
+<div class="card" style="--accent:{{ game.color }}">
+  <h2>Как выбывали</h2>
+  <div class="chart">
+    {% for d in by_day %}
+    <div><span class="n">{{ d.n }}</span><div class="bar-v" style="height:{{ d.pct }}%"></div><span class="d">{{ d.day }}</span></div>
+    {% endfor %}
+  </div>
+  {% if records.total %}
+  <ul class="feed" style="margin-top:14px">
+    <li><span class="lbl" style="min-width:110px">Первое</span>
+      <span>{{ records.first_kill.killer }} → {{ records.first_kill.victim }}</span><time>{{ records.first_kill.at }}</time></li>
+    <li><span class="lbl" style="min-width:110px">Последнее</span>
+      <span>{{ records.last_kill.killer }} → {{ records.last_kill.victim }}</span><time>{{ records.last_kill.at }}</time></li>
+    {% if records.top_hunter %}
+    <li><span class="lbl" style="min-width:110px">Лучший охотник</span>
+      <span>{{ records.top_hunter.name }}</span><time>{{ records.top_hunter.kills_count }}</time></li>
+    {% endif %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if log %}
+<div class="card">
+  <div class="head">
+    <h2>Разбор</h2>
+    <a class="btn sm ghost" href="/games/{{ game.id }}/export.csv">Скачать .csv</a>
+  </div>
+  <div class="scroll"><table>
+    <tr><th>Когда</th><th>Кто</th><th></th><th>Кого</th></tr>
+    {% for e in log %}
+      {% if e.type == 'kill_confirmed' %}
+      <tr><td class="n s">{{ e.created_at[:16] | replace('T', ' ') }}</td><td>{{ e.killer }}</td>
+          <td style="color:var(--manila)">→</td><td>{{ e.victim }}</td></tr>
+      {% elif e.type == 'participant_withdrawn' %}
+      <tr><td class="n s">{{ e.created_at[:16] | replace('T', ' ') }}</td><td class="faint">выведен</td>
+          <td></td><td>{{ e.victim }}</td></tr>
+      {% endif %}
+    {% endfor %}
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Ход игры</h2>
+  <ul class="feed">
+    {% for f in feed %}
+    <li><span>{{ f.text }}</span><time>{{ f.at[8:10] }}.{{ f.at[5:7] }} {{ f.at[11:16] }}</time></li>
+    {% else %}<li class="empty">Событий нет</li>{% endfor %}
+  </ul>
+</div>
+
+{% if participants %}
+<div class="card">
+  <h2>Состав</h2>
+  <div class="scroll"><table>
+    {% for p in participants %}
+    <tr><td>{{ p.display_name_snapshot }}</td>
+        <td style="text-align:right"><span class="tag {{ 'live' if p.status in ('alive','joined') else ('out' if p.status in ('dead','withdrawn') else 'wait') }}">{{
+          {'invited':'молчит','joined':'принял','declined':'отказ','alive':'в игре',
+           'dead':'выбыл','withdrawn':'выведен'}[p.status] }}</span></td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

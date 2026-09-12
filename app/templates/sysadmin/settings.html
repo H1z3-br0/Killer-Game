@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card" style="max-width:600px">
+  <form method="post" action="/admin/settings">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <label><span>Название сервиса</span><input name="platform_name" value="{{ values.platform_name }}"></label>
+      <label><span>Telegram поддержки</span><input name="support_telegram" value="{{ values.support_telegram }}" placeholder="без @"></label>
+    </div>
+    <label style="margin-top:13px"><span>Баннер обслуживания</span>
+      <input name="maintenance_message" value="{{ values.maintenance_message }}" placeholder="пусто — баннера нет"></label>
+    <label><span>Разрешённая подсеть</span>
+      <input name="subnet_allowlist" value="{{ values.subnet_allowlist }}" placeholder="пусто — выключено"></label>
+    <label class="check">
+      <input type="checkbox" name="allow_anyone_create_game" {{ 'checked' if values.allow_anyone_create_game }}>
+      <span>Игры может создавать любой</span></label>
+    <label class="check">
+      <input type="checkbox" name="allow_multiple_active_games" {{ 'checked' if values.allow_multiple_active_games }}>
+      <span>Можно играть в нескольких играх сразу</span></label>
+    <button class="primary">Сохранить</button>
+  </form>
+</div>
+{% endblock %}

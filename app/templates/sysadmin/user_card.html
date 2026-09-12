@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ display_name(user) }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>{{ user.avatar_emoji }} {{ display_name(user) }}
+      <span class="mono faint" style="font-size:14px">@{{ user.login }}</span></h2>
+    <a class="btn sm ghost" href="/admin/users">К списку</a>
+  </div>
+  <div class="acts" style="margin-bottom:14px">
+    {% if user.role == 'sysadmin' %}<span class="tag wait">сисадмин</span>{% endif %}
+    {% if user.status == 'blocked' %}<span class="tag out">заблокирован</span>{% endif %}
+    {% if user.department %}<span class="s dim">{{ user.department }}</span>{% endif %}
+    {% if user.telegram %}<a class="s" href="https://t.me/{{ user.telegram }}">@{{ user.telegram }}</a>{% endif %}
+    <span class="s faint">с {{ user.created_at[:10] }}</span>
+  </div>
+  <div class="stats">
+    <div><span class="lbl">Игр</span><b>{{ stats.games }}</b></div>
+    <div><span class="lbl">Устранений</span><b>{{ stats.kills }}</b></div>
+    <div><span class="lbl">Побед</span><b>{{ stats.wins }}</b></div>
+    <div><span class="lbl">Устройств</span><b>{{ sessions | length }}</b></div>
+  </div>
+  <div class="acts" style="margin-top:16px">
+    <form method="post" action="/admin/users/{{ user.id }}/reset" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm gold">Код сброса</button>
+    </form>
+    <form method="post" action="/admin/users/{{ user.id }}/block" class="inline"
+          onsubmit="return confirm('{{ 'Разблокировать?' if user.status == 'blocked' else 'Заблокировать и вывести из активных игр?' }}')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="sm">{{ 'Разблокировать' if user.status == 'blocked' else 'Заблокировать' }}</button>
+    </form>
+    <form method="post" action="/admin/users/{{ user.id }}/role" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="sm ghost">{{ 'Снять сисадмина' if user.role == 'sysadmin' else 'Сделать сисадмином' }}</button>
+    </form>
+    <form method="post" action="/admin/users/{{ user.id }}/anonymize" class="inline"
+          onsubmit="return confirm('Обезличить? Имя исчезнет, история игр останется.')">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Обезличить</button>
+    </form>
+    <form method="post" action="/admin/users/{{ user.id }}/delete" class="inline"
+          onsubmit="return confirm('Удалить полностью и необратимо?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="confirm_name" value="{{ display_name(user) }}">
+      <button class="sm ghost danger">Удалить</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Игры</h2>
+    <div class="scroll"><table>
+      {% for g in games %}
+      <tr><td><a href="/admin/games/{{ g.id }}">{{ g.title }}</a></td>
+          <td class="s dim">{{ g.my_status }}</td><td class="n">{{ g.kills_count }}</td>
+          <td class="n faint">{{ g.place or '—' }}</td></tr>
+      {% else %}<tr><td class="empty">Не играл</td></tr>{% endfor %}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Устройства</h2>
+    <ul class="feed">
+      {% for s in sessions %}
+      <li><span class="s">{{ s.user_agent[:36] or 'неизвестное' }}</span>
+        <time>{{ s.last_seen_at[5:16] | replace('T', ' ') }}</time></li>
+      {% else %}<li class="empty">Нет активных</li>{% endfor %}
+    </ul>
+    {% if requests %}
+    <h3 style="margin-top:18px">Обращения</h3>
+    <ul class="feed">
+      {% for r in requests %}<li><span class="mono s">{{ r.code }}</span><span class="s">{{ r.type }}</span>
+        <time>{{ r.status }}</time></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

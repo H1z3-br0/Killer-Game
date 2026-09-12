@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ game.title }}{% endblock %}
+{% block content %}
+<div class="card" style="--accent:{{ game.color }}">
+  <div class="head">
+    <h2>{{ game.title }}</h2>
+    <a class="btn sm ghost" href="/admin/games">Все игры</a>
+  </div>
+  <div class="stats">
+    <div><span class="lbl">В игре</span><b>{{ counters.alive }}</b></div>
+    <div><span class="lbl">Выбыло</span><b>{{ counters.dead + counters.withdrawn }}</b></div>
+    <div><span class="lbl">Заявок ждут</span><b>{{ counters.pending_claims }}</b></div>
+    <div><span class="lbl">Круг</span>
+      <b style="color:{{ 'var(--verify)' if check.ok else 'var(--signal)' }}">{{ 'цел' if check.ok else 'нарушен' }}</b></div>
+  </div>
+  {% if not check.ok and check.reason %}<p class="s" style="color:var(--signal);margin:12px 0 0">{{ check.reason }}</p>{% endif %}
+</div>
+
+{% if game.status in ('running','paused') %}
+<div class="grid two">
+  <div class="card">
+    <h2>Вывести участника</h2>
+    <form method="post" action="/admin/games/{{ game.id }}/withdraw">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label><span>Кого</span>
+        <select name="participant_id">
+          {% for c in candidates %}<option value="{{ c.id }}">{{ c.display_name_snapshot }}</option>{% endfor %}
+        </select></label>
+      <label><span>Причина</span><input name="reason" placeholder="уволился, не подтверждает"></label>
+      <button class="primary">Вывести</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Откат</h2>
+    {% if last_event %}
+    <p class="s dim">Последнее: <span class="mono">{{ last_event.type }}</span>,
+      {{ last_event.created_at[5:16] | replace('T', ' ') }}. Откатывается только оно.</p>
+    <form method="post" action="/admin/games/{{ game.id }}/revert" style="margin-top:13px"
+          onsubmit="return confirm('Откатить последнее событие?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Откатить</button>
+    </form>
+    {% else %}<p class="empty">Событий нет</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Состав</h2>
+  <div class="scroll"><table>
+    <tr><th>Участник</th><th>Статус</th><th>Устранений</th><th>Место</th></tr>
+    {% for p in participants %}
+    <tr><td>{{ p.display_name_snapshot }}</td><td class="s dim">{{ p.status }}</td>
+        <td class="n">{{ p.kills_count }}</td><td class="n faint">{{ p.place or '—' }}</td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endblock %}

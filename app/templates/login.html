@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<div class="card" style="max-width:380px;margin-inline:auto">
+  <h2>Вход</h2>
+  {% if error %}<div class="msg bad">{{ error }}</div>{% endif %}
+  <form method="post" action="/login">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label><span>Логин</span>
+      <input name="login" value="{{ form.login if form }}" required autofocus
+             autocapitalize="none" autocomplete="username" spellcheck="false"
+             style="font-family:var(--mono)"></label>
+    <label><span>Пароль</span>
+      <input type="password" name="password" required autocomplete="current-password"></label>
+    <button class="primary wide">Войти</button>
+  </form>
+  <p class="s dim" style="margin-top:16px">
+    Забыли пароль? <a href="/login/device">Код с другого устройства</a> ·
+    <a href="/support">сисадмин</a>
+  </p>
+  <p class="s dim center" style="margin-bottom:0"><a href="/register">Зарегистрироваться</a></p>
+</div>
+{% endblock %}

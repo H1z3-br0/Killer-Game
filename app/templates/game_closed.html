@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ game.title }}{% endblock %}
+{% block content %}
+<div class="card center" style="--accent:{{ game.color }};max-width:440px;margin-inline:auto">
+  <p class="lbl">Закрытая игра</p>
+  <h2 style="margin:8px 0">{{ game.title }}</h2>
+  <p class="s dim">{% if game.status == 'finished' %}Завершена.{% elif game.status in ('running','paused') %}Идёт.{% else %}Идёт набор.{% endif %}
+    Вход только по приглашению ведущего.</p>
+  <a class="btn ghost" href="/">На главную</a>
+</div>
+{% endblock %}

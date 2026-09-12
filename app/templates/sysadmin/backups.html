@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Бэкапы{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card">
+  <div class="head">
+    <h2>Бэкапы</h2>
+    <form method="post" action="/admin/backups" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm gold">Сделать копию</button>
+    </form>
+  </div>
+  {% if running %}
+  <p class="s" style="color:var(--manila)">Идут игры: {% for g in running %}{{ g.title }}{% if not loop.last %}, {% endif %}{% endfor %}.
+    Восстановление вернёт их к состоянию на момент копии.</p>
+  {% endif %}
+  <div class="scroll"><table>
+    <tr><th>Файл</th><th>Размер</th><th></th></tr>
+    {% for r in rows %}
+    <tr><td class="mono s">{{ r.name }}</td><td class="n">{{ r.size }} КБ</td>
+      <td style="text-align:right">
+        <form method="post" action="/admin/backups/restore" class="inline"
+              onsubmit="return confirm('Восстановить? Всё, что произошло после копии, исчезнет: устранения отменятся, выбывшие оживут.')">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="name" value="{{ r.name }}">
+          <button class="sm ghost danger">Восстановить</button>
+        </form>
+      </td></tr>
+    {% else %}<tr><td colspan="3" class="empty">Копий нет</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

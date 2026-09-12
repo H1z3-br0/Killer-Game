@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Сервис{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card flat">
+  <div class="stats">
+    <div><span class="lbl">Аптайм</span><b>{{ uptime }}</b></div>
+    <div><span class="lbl">База</span><b>{{ db_size }} КБ</b></div>
+    <div><span class="lbl">Диск свободен</span><b>{{ free_mb }} МБ</b></div>
+    <div><span class="lbl">Сессий</span><b>{{ sessions }}</b></div>
+  </div>
+  <div class="acts" style="margin-top:16px">
+    <form method="post" action="/admin/maintenance/cleanup" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Убрать истёкшие коды</button>
+    </form>
+    <a class="btn sm ghost" href="/admin/integrity">Проверить круги</a>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Обращений</h2>
+    <ul class="feed">
+      {% for s in stats %}<li><span>{{ s.day }}</span><time>{{ s.hits }}</time></li>
+      {% else %}<li class="empty">Нет данных</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <div class="head">
+      <h2>Ошибки</h2>
+      {% if errors %}
+      <form method="post" action="/admin/maintenance/errors/clear" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Очистить</button>
+      </form>
+      {% endif %}
+    </div>
+    <ul class="feed">
+      {% for e in errors %}
+      <li><span class="mono s">{{ e.path }}</span><span class="s">{{ e.message }}</span>
+        <time>{{ e.created_at[11:16] }}</time></li>
+      {% else %}<li class="empty">Чисто</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

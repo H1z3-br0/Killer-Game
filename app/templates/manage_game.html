@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Ведение: {{ game.title }}{% endblock %}
+{% block content %}
+
+<div class="card" style="--accent:{{ game.color }}">
+  <div class="head" style="margin-bottom:8px">
+    <div>
+      <p class="lbl">Панель ведущего</p>
+      <h2 style="font-size:22px;margin-top:4px">{{ game.title }}</h2>
+    </div>
+    <a class="btn sm ghost" href="/games/{{ game.id }}">Взгляд игрока</a>
+  </div>
+  <div class="acts">
+    <span class="tag {{ 'live' if game.status == 'running' else 'wait' }}">{{
+      {'draft':'набор','recruiting':'набор','running':'идёт','paused':'пауза',
+       'finished':'завершена','void':'не состоялась'}[game.status] }}</span>
+    <span class="tag plain">{{ 'открытая' if game.visibility == 'open' else 'закрытая' }}</span>
+    {% if admin_plays %}<span class="s dim">вы играете — имена скрыты</span>{% endif %}
+  </div>
+</div>
+
+<div class="card flat">
+  <div class="stats">
+    <div><span class="lbl">Приняли</span><b>{{ counters.joined + counters.alive }}</b></div>
+    <div><span class="lbl">Молчат</span><b>{{ counters.invited }}</b></div>
+    <div><span class="lbl">В игре</span><b>{{ counters.alive }}</b></div>
+    <div><span class="lbl">Заявок ждут</span><b>{{ counters.pending_claims }}</b></div>
+  </div>
+</div>
+
+{% if game.status in ('draft','recruiting') %}
+<div class="card">
+  <div class="head">
+    <h2>Кого зовём</h2>
+    <span class="s dim" id="pickCount"></span>
+  </div>
+  <form method="post" action="/manage/games/{{ game.id }}/invite">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="search" id="pickSearch" placeholder="Поиск по фамилии" style="margin-bottom:11px">
+    <div class="picker" id="picker">
+      <label><input type="checkbox" id="checkAll"><span><b>Отметить всех</b></span></label>
+      {% for u in candidates %}{% if not u.in_game %}
+      <label data-name="{{ display_name(u) | lower }} {{ u.login }}">
+        <input type="checkbox" name="user_ids" value="{{ u.id }}">
+        <span>{{ u.avatar_emoji }} {{ display_name(u) }}
+          <span class="mono faint s">@{{ u.login }}</span>
+          {% if not u.last_seen_at %}<span class="tag wait">не входил</span>{% endif %}
+          {% if u.busy %}<span class="tag plain">занят</span>{% endif %}
+        </span>
+      </label>
+      {% endif %}{% endfor %}
+    </div>
+    <div class="acts" style="margin-top:13px">
+      <button name="mode" value="selected" class="gold">Пригласить отмеченных</button>
+      <button name="mode" value="all" class="sm">Всех</button>
+      <button name="mode" value="free" class="sm">Всех свободных</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>Состав</h2>
+    <span class="s dim">в круг войдут только принявшие, минимум {{ min_players }}</span>
+  </div>
+  <div class="scroll"><table>
+    {% for p in participants %}
+    <tr>
+      <td>{{ p.display_name_snapshot }}</td>
+      <td><span class="tag {{ 'live' if p.status == 'joined' else 'wait' }}">{{
+        {'invited':'молчит','joined':'принял','declined':'отказ','alive':'в игре',
+         'dead':'выбыл','withdrawn':'выведен'}[p.status] }}</span></td>
+      <td style="text-align:right">
+        <form method="post" action="/manage/games/{{ game.id }}/remove/{{ p.id }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Убрать</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}<tr><td class="empty">Пока никого</td></tr>{% endfor %}
+  </table></div>
+
+  <div class="sticky">
+    <form method="post" action="/manage/games/{{ game.id }}/start" class="inline" style="flex:1">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="primary wide">Начать игру</button>
+    </form>
+    <form method="post" action="/manage/games/{{ game.id }}/visibility" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="visibility" value="{{ 'private' if game.visibility == 'open' else 'open' }}">
+      <button class="wide">Сделать {{ 'закрытой' if game.visibility == 'open' else 'открытой' }}</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if game.status in ('running','paused') %}
+<div class="card">
+  <h2>Управление</h2>
+  <div class="acts">
+    <form method="post" action="/manage/games/{{ game.id }}/pause" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button>{{ 'Продолжить' if game.status == 'paused' else 'Пауза' }}</button>
+    </form>
+    <form method="post" action="/manage/games/{{ game.id }}/finish" class="inline"
+          onsubmit="return confirm('Завершить досрочно? Победит тот, у кого больше устранений.')">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Завершить</button>
+    </form>
+  </div>
+
+  {% if not admin_plays and stale %}
+  <h3 style="margin-top:20px">Не подтвердили устранение</h3>
+  <ul class="feed">
+    {% for s in stale %}<li><span>{{ s.who }}</span><time>{{ s.created_at[5:16] | replace('T', ' ') }}</time></li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Срок игры</h2>
+    <p class="s dim">По сроку сервис завершит игру сам: победит тот, у кого больше устранений.</p>
+    <form method="post" action="/manage/games/{{ game.id }}/deadline" style="margin-top:13px">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="row">
+        <label><span>Играем до</span><input name="deadline_at" value="{{ game.deadline_at or '' }}" placeholder="2026-09-20"></label>
+        <label style="flex:0 0 120px"><span>&nbsp;</span><button class="wide">Сохранить</button></label>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Вывести участника</h2>
+    <p class="s dim">Выводит сисадмин — отправьте ему заявку.</p>
+    <form method="post" action="/manage/games/{{ game.id }}/request-withdraw" style="margin-top:13px">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label><span>Кого</span>
+        <select name="participant_id">
+          {% for p in participants %}{% if p.status == 'alive' %}
+          <option value="{{ p.id }}">{{ p.display_name_snapshot }}</option>{% endif %}{% endfor %}
+        </select>
+      </label>
+      <label><span>Причина</span><input name="reason" placeholder="уволился, не подтверждает"></label>
+      <button>Отправить заявку</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

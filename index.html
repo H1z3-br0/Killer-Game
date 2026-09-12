@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Генератор цепочки жертв для игры «Киллер»: один замкнутый круг, скрытая выдача цели каждому игроку, досье ведущего и записки для печати.">
+<title>Цепочка жертв</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Oswald:wght@500;600&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0B0E13', panel: '#12161E', panel2: '#171C26', line: '#242B38',
+          paper: '#E8E4D9', muted: '#8B94A6', manila: '#D9A441', signal: '#D9483B', verify: '#5FA88B'
+        },
+        fontFamily: {
+          display: ['Oswald', '"Arial Narrow"', 'sans-serif'],
+          sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace']
+        }
+      }
+    }
+  };
+</script>
+<style>
+  :root {
+    --ink:#0B0E13; --panel:#12161E; --panel2:#171C26; --line:#242B38;
+    --paper:#E8E4D9; --muted:#8B94A6; --manila:#D9A441; --signal:#D9483B; --verify:#5FA88B;
+  }
+  /* Осознанно одна тема: подсвеченный терминал в тёмной комнате. Все цвета заданы явно. */
+  body {
+    background-color: var(--ink);
+    background-image:
+      radial-gradient(120% 80% at 50% -10%, rgba(217,164,65,.07), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.016) 0 1px, transparent 1px 3px);
+    color: var(--paper);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .ax-eyebrow { letter-spacing: .14em; }
+  .ax-panel { background: var(--panel); border: 1px solid var(--line); }
+  .ax-panel--raised { background: var(--panel2); }
+
+  /* Край папки с делом под шапкой */
+  .ax-tab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+    background: linear-gradient(90deg, var(--manila) 0 34%, var(--line) 34% 100%);
+  }
+
+  /* Цензурная плашка: имя жертвы закрыто, пока её не откроют. */
+  .ax-redaction {
+    position: absolute; inset: 0; transform-origin: right center;
+    background: #05070A;
+    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, transparent 2px 6px);
+    border: 1px solid var(--line);
+    transition: transform .55s cubic-bezier(.7,0,.2,1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-reveal.is-open .ax-redaction { transform: scaleX(0); }
+  .ax-reveal .ax-target { opacity: 0; transform: translateY(4px); transition: opacity .3s ease .25s, transform .3s ease .25s; }
+  .ax-reveal.is-open .ax-target { opacity: 1; transform: none; }
+
+  .ax-timer-bar { transform-origin: left center; transition: transform linear; }
+
+  .ax-chain-row + .ax-chain-row { border-top: 1px dashed var(--line); }
+  .ax-chain-row:hover { background: rgba(217,164,65,.05); }
+
+  .ax-step { counter-increment: none; }
+
+  .ax-shake { animation: ax-shake .32s ease; }
+  @keyframes ax-shake { 25%{transform:translateX(-5px)} 50%{transform:translateX(5px)} 75%{transform:translateX(-3px)} }
+
+  .ax-toast { transition: opacity .25s ease, transform .25s ease; }
+
+  input, textarea, select, button { font-family: inherit; }
+  textarea, input, select { color-scheme: dark; }
+  :focus-visible { outline: 2px solid var(--manila); outline-offset: 2px; border-radius: 2px; }
+  ::selection { background: rgba(217,72,59,.4); color: var(--paper); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--ink); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border: 2px solid var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="min-h-screen px-4 sm:px-6 py-6 sm:py-10 max-w-[1180px] mx-auto flex flex-col gap-6">
+
+  <!-- ═══ Шапка дела ═══ -->
+  <header class="ax-tab relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-4">
+    <div class="flex items-center gap-3.5">
+      <svg viewBox="0 0 40 40" class="w-9 h-9 shrink-0" aria-hidden="true">
+        <circle cx="20" cy="20" r="15" fill="none" stroke="#D9483B" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="6.5" fill="none" stroke="#D9A441" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="2" fill="#D9483B"/>
+        <path d="M20 1v9M20 30v9M1 20h9M30 20h9" stroke="#D9A441" stroke-width="1.5"/>
+      </svg>
+      <div>
+        <h1 class="font-display text-3xl sm:text-4xl leading-none tracking-wide text-paper">КИЛЛЕР</h1>
+        <p class="ax-eyebrow font-mono text-[10px] sm:text-[11px] uppercase text-manila mt-1.5">Генератор цепочки жертв</p>
+      </div>
+    </div>
+    <dl class="font-mono text-[11px] text-muted flex flex-wrap items-center gap-x-5 gap-y-1">
+      <div class="flex gap-2"><dt class="text-muted/70">ДЕЛО</dt><dd id="caseNo" class="text-paper">АХ-0000</dd></div>
+      <div class="flex gap-2"><dt class="text-muted/70">ДАТА</dt><dd id="issuedAt" class="text-paper">—</dd></div>
+      <div class="flex gap-2"><dt class="text-muted/70">ИГРОКОВ</dt><dd id="agentCount" class="text-paper">0</dd></div>
+    </dl>
+  </header>
+
+  <!-- Правила игры в одну строку — чтобы не объяснять их голосом -->
+  <p class="text-[13px] sm:text-sm text-muted leading-relaxed border-l-2 border-manila pl-3.5 max-w-3xl">
+    Каждый игрок получает <span class="text-paper">одну жертву</span> и сам является чьей-то жертвой. Все связаны в один замкнутый круг:
+    <span class="font-mono text-manila">А → Б → В → А</span>. Устранили свою жертву — забираете себе её цель, круг сжимается, пока не останется один.
+  </p>
+
+  <main class="grid lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] gap-6 items-start">
+
+    <!-- ═══ Колонка 1 — список игроков ═══ -->
+    <section class="ax-panel p-5 flex flex-col gap-5" aria-labelledby="rosterHeading">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 id="rosterHeading" class="font-display text-xl tracking-wide">ШАГ 1 · СПИСОК ИГРОКОВ</h2>
+        <span id="rosterCount" class="font-mono text-[11px] text-muted">0 игроков</span>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="roster" class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Имена — по одному в строке</label>
+        <textarea id="roster" rows="7" spellcheck="false"
+          class="w-full bg-ink border border-line px-3 py-2.5 font-mono text-[13px] leading-relaxed text-paper placeholder:text-muted/50 resize-y focus:border-manila transition-colors"
+          placeholder="Аня Соколова&#10;Максим Дорн&#10;Лейла Хайруллина"></textarea>
+      </div>
+
+      <div class="flex gap-2">
+        <label for="quickAdd" class="sr-only">Добавить одного игрока</label>
+        <input id="quickAdd" type="text" autocomplete="off" placeholder="Добавить игрока…"
+          class="flex-1 min-w-0 bg-ink border border-line px-3 py-2 font-mono text-[13px] text-paper placeholder:text-muted/50 focus:border-manila transition-colors">
+        <button id="addBtn" type="button"
+          class="px-3.5 py-2 border border-line text-manila font-mono text-[12px] uppercase tracking-wider hover:border-manila hover:bg-manila/10 transition-colors">Добавить</button>
+      </div>
+
+      <div id="chipWrap" class="flex flex-wrap gap-1.5" aria-live="polite"></div>
+
+      <p id="rosterMsg" class="font-mono text-[11px] leading-relaxed min-h-[1rem] text-muted" role="status"></p>
+
+      <div class="border-t border-line pt-4 flex flex-col gap-2">
+        <label for="passcode" class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Пароль ведущего <span class="normal-case tracking-normal text-muted/60">— по желанию</span></label>
+        <input id="passcode" type="password" autocomplete="new-password" placeholder="пусто — открывать одним нажатием"
+          class="w-full bg-ink border border-line px-3 py-2 font-mono text-[13px] text-paper placeholder:text-muted/50 focus:border-manila transition-colors">
+        <p class="text-[11px] text-muted leading-relaxed">Закрывает полный список паролем, чтобы игрок не подсмотрел его, пока телефон ходит по кругу.</p>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <button id="generateBtn" type="button"
+          class="w-full py-3 bg-signal text-paper font-display text-lg tracking-[.1em] uppercase border border-signal hover:bg-signal/85 disabled:opacity-35 disabled:cursor-not-allowed transition-colors">Раздать жертв</button>
+        <div class="flex gap-2">
+          <button id="reshuffleBtn" type="button"
+            class="flex-1 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-paper hover:border-manila hover:text-manila disabled:opacity-35 disabled:cursor-not-allowed transition-colors">Перемешать</button>
+          <button id="clearBtn" type="button"
+            class="px-4 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-muted hover:border-signal hover:text-signal transition-colors">Очистить</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Колонка 2 — проверка, терминал, досье ═══ -->
+    <div class="flex flex-col gap-6 min-w-0">
+
+      <!-- Проверка цепочки -->
+      <section id="statusStrip" class="ax-panel ax-panel--raised px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4" aria-label="Проверка цепочки">
+        <div class="col-span-2 sm:col-span-1 flex items-center gap-2.5">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-verify shrink-0"></span>
+          <span id="statusLabel" class="font-display text-base tracking-wide uppercase text-verify">Круг замкнут</span>
+        </div>
+        <div><p class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Игроков в круге</p><p id="statNodes" class="font-mono text-sm text-paper mt-1 tabular-nums">—</p></div>
+        <div><p class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Кругов всего</p><p id="statLoops" class="font-mono text-sm text-paper mt-1 tabular-nums">—</p></div>
+        <div><p class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Сам на себя</p><p id="statSelf" class="font-mono text-sm text-paper mt-1 tabular-nums">—</p></div>
+      </section>
+
+      <!-- Терминал игрока -->
+      <section class="ax-panel p-5 sm:p-6 flex flex-col gap-5" aria-labelledby="revealHeading">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+          <h2 id="revealHeading" class="font-display text-xl tracking-wide">ШАГ 2 · ЭКРАН ИГРОКА</h2>
+          <span class="font-mono text-[11px] text-muted">По одному: посмотрел → скрыл → передал телефон</span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2">
+          <label for="playerSelect" class="sr-only">Выберите своё имя</label>
+          <select id="playerSelect"
+            class="flex-1 min-w-0 bg-ink border border-line px-3 py-2.5 font-mono text-[13px] text-paper focus:border-manila transition-colors">
+            <option value="">Выберите своё имя…</option>
+          </select>
+          <button id="revealBtn" type="button"
+            class="px-5 py-2.5 border border-manila text-manila font-mono text-[12px] uppercase tracking-wider hover:bg-manila hover:text-ink transition-colors">Показать жертву</button>
+        </div>
+
+        <!-- Пока плашка не поднята, имя жертвы вообще не попадает в страницу -->
+        <div id="revealCard" class="ax-reveal relative border border-line bg-ink px-5 sm:px-7 py-8 sm:py-10 overflow-hidden">
+          <div class="ax-target flex flex-col gap-2">
+            <p class="ax-eyebrow font-mono text-[10px] uppercase text-muted"><span id="revealFor">Игрок</span> — ваша жертва</p>
+            <p id="targetName" class="font-mono text-2xl sm:text-4xl font-semibold text-paper break-words leading-tight">&nbsp;</p>
+            <p id="targetMeta" class="font-mono text-[11px] text-manila">&nbsp;</p>
+          </div>
+          <div class="ax-redaction">
+            <span class="ax-eyebrow font-mono text-[11px] uppercase text-muted/70">Секретно — только для вас</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4 flex-wrap">
+          <button id="hideBtn" type="button" disabled
+            class="px-5 py-2.5 bg-paper text-ink font-mono text-[12px] uppercase tracking-wider hover:bg-white disabled:opacity-25 disabled:cursor-not-allowed transition-colors">Скрыть и передать</button>
+          <div class="flex-1 min-w-[160px]">
+            <div class="h-[3px] bg-line overflow-hidden">
+              <div id="timerBar" class="ax-timer-bar h-full bg-signal scale-x-0"></div>
+            </div>
+            <p id="timerLabel" class="font-mono text-[10px] text-muted mt-1.5">Скроется само через 20 секунд</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Досье ведущего -->
+      <section class="ax-panel" aria-labelledby="gmHeading">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap px-5 sm:px-6 pt-5 pb-4 border-b border-line">
+          <h2 id="gmHeading" class="font-display text-xl tracking-wide">ШАГ 3 · ДОСЬЕ ВЕДУЩЕГО</h2>
+          <button id="lockBtn" type="button" class="hidden font-mono text-[11px] uppercase tracking-wider text-muted hover:text-signal transition-colors">Закрыть обратно</button>
+        </div>
+
+        <!-- Закрыто -->
+        <div id="gmLocked" class="px-5 sm:px-6 py-8 flex flex-col items-center text-center gap-4">
+          <svg viewBox="0 0 24 24" class="w-8 h-8" aria-hidden="true">
+            <rect x="4" y="10.5" width="16" height="10" fill="none" stroke="#8B94A6" stroke-width="1.4"/>
+            <path d="M8 10.5V7.5a4 4 0 018 0v3" fill="none" stroke="#8B94A6" stroke-width="1.4"/>
+          </svg>
+          <p class="text-sm text-muted max-w-md leading-relaxed">Здесь вся цепочка целиком — кто на кого охотится. Открывайте, только если вы ведущий и рядом нет игроков.</p>
+          <form id="unlockForm" class="flex flex-col sm:flex-row gap-2 w-full max-w-sm">
+            <label for="unlockInput" class="sr-only">Пароль</label>
+            <input id="unlockInput" type="password" autocomplete="off" placeholder="Пароль"
+              class="hidden flex-1 min-w-0 bg-ink border border-line px-3 py-2 font-mono text-[13px] text-paper placeholder:text-muted/50 focus:border-manila transition-colors">
+            <button id="unlockBtn" type="submit"
+              class="flex-1 px-5 py-2 border border-manila text-manila font-mono text-[12px] uppercase tracking-wider hover:bg-manila hover:text-ink transition-colors">Показать цепочку</button>
+          </form>
+          <p id="unlockMsg" class="font-mono text-[11px] text-signal min-h-[1rem]" role="alert"></p>
+        </div>
+
+        <!-- Открыто -->
+        <div id="gmOpen" class="hidden px-5 sm:px-6 py-5 flex-col gap-5">
+          <div id="chainList" class="border border-line overflow-x-auto"></div>
+          <p class="font-mono text-[11px] text-muted">Круг замыкается: у каждого ровно одна жертва и ровно один охотник.</p>
+
+          <div class="border-t border-line pt-5 flex flex-col gap-3">
+            <p class="ax-eyebrow font-mono text-[10px] uppercase text-muted">Сохранить</p>
+            <div class="flex flex-wrap gap-2">
+              <button data-export="txt" type="button" class="px-4 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-paper hover:border-manila hover:text-manila transition-colors">Список .txt</button>
+              <button data-export="csv" type="button" class="px-4 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-paper hover:border-manila hover:text-manila transition-colors">Таблица .csv</button>
+              <button data-export="zip" type="button" class="px-4 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-paper hover:border-manila hover:text-manila transition-colors">Записки игрокам .zip</button>
+              <button data-export="copy" type="button" class="px-4 py-2 border border-line font-mono text-[12px] uppercase tracking-wider text-muted hover:border-paper hover:text-paper transition-colors">Скопировать</button>
+            </div>
+            <p class="text-[11px] text-muted leading-relaxed">В архиве — по одному файлу на игрока: распечатайте, разрежьте, раздайте. Нужен просто текст — нажмите <span class="text-paper">Скопировать</span>, весь список ляжет в буфер обмена.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="font-mono text-[11px] text-muted/70 border-t border-line pt-4 flex flex-wrap gap-x-6 gap-y-1 justify-between">
+    <span>Один замкнутый круг · случайное перемешивание · проверка перед выдачей</span>
+    <span>Ничего не уходит с устройства — ни сервера, ни сохранений.</span>
+  </footer>
+</div>
+
+<div id="toast" class="ax-toast fixed bottom-5 right-5 z-50 opacity-0 translate-y-2 pointer-events-none bg-panel2 border border-manila px-4 py-2.5 font-mono text-[12px] text-paper max-w-[85vw]" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    roster: $('roster'), quickAdd: $('quickAdd'), addBtn: $('addBtn'), chipWrap: $('chipWrap'),
+    rosterMsg: $('rosterMsg'), rosterCount: $('rosterCount'), passcode: $('passcode'),
+    generateBtn: $('generateBtn'), reshuffleBtn: $('reshuffleBtn'), clearBtn: $('clearBtn'),
+    caseNo: $('caseNo'), issuedAt: $('issuedAt'), agentCount: $('agentCount'),
+    statusDot: $('statusDot'), statusLabel: $('statusLabel'),
+    statNodes: $('statNodes'), statLoops: $('statLoops'), statSelf: $('statSelf'),
+    playerSelect: $('playerSelect'), revealBtn: $('revealBtn'), revealCard: $('revealCard'),
+    revealFor: $('revealFor'), targetName: $('targetName'), targetMeta: $('targetMeta'),
+    hideBtn: $('hideBtn'), timerBar: $('timerBar'), timerLabel: $('timerLabel'),
+    gmLocked: $('gmLocked'), gmOpen: $('gmOpen'), unlockForm: $('unlockForm'), unlockInput: $('unlockInput'),
+    unlockBtn: $('unlockBtn'), unlockMsg: $('unlockMsg'), lockBtn: $('lockBtn'), chainList: $('chainList'),
+    toast: $('toast')
+  };
+
+  const MIN_PLAYERS = 3;
+  const HIDE_AFTER_MS = 20000;
+
+  /** @type {{chain: {code:string, player:string, target:string}[], passcode:string, caseNo:string, issued:string}} */
+  let game = { chain: [], passcode: '', caseNo: '', issued: '' };
+  let hideTimer = null;
+
+  // Русские числительные: 1 игрок, 2 игрока, 5 игроков.
+  function plural(n, one, few, many) {
+    const d10 = n % 10, d100 = n % 100;
+    if (d10 === 1 && d100 !== 11) return n + ' ' + one;
+    if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return n + ' ' + few;
+    return n + ' ' + many;
+  }
+
+  /* ─────────────────────────── Разбор списка ─────────────────────────── */
+
+  // Убираем пробелы и пустые строки, повторы (без учёта регистра) отбрасываем.
+  function parseRoster(text) {
+    const seen = new Set();
+    const names = [];
+    let duplicates = 0;
+    for (const raw of text.split('\n')) {
+      const name = raw.trim().replace(/\s+/g, ' ');
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) { duplicates++; continue; }
+      seen.add(key);
+      names.push(name);
+    }
+    return { names, duplicates };
+  }
+
+  function renderRoster() {
+    const { names, duplicates } = parseRoster(el.roster.value);
+    el.rosterCount.textContent = plural(names.length, 'игрок', 'игрока', 'игроков');
+
+    el.chipWrap.replaceChildren(...names.map((name, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'inline-flex items-center gap-1.5 border border-line bg-ink pl-2.5 pr-1.5 py-1 font-mono text-[11px] text-paper';
+      chip.append(name);
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'text-muted hover:text-signal transition-colors leading-none text-[13px]';
+      x.setAttribute('aria-label', 'Убрать ' + name);
+      x.textContent = '×';
+      x.addEventListener('click', () => {
+        const next = names.slice();
+        next.splice(i, 1);
+        el.roster.value = next.join('\n');
+        renderRoster();
+      });
+      chip.append(x);
+      return chip;
+    }));
+
+    const notes = [];
+    if (duplicates) notes.push(plural(duplicates, 'повтор пропущен', 'повтора пропущено', 'повторов пропущено'));
+    if (names.length < MIN_PLAYERS) {
+      notes.push('Чтобы замкнуть круг, нужно хотя бы 3 игрока — добавьте ещё ' + (MIN_PLAYERS - names.length));
+      el.rosterMsg.className = 'font-mono text-[11px] leading-relaxed min-h-[1rem] text-signal';
+    } else {
+      el.rosterMsg.className = 'font-mono text-[11px] leading-relaxed min-h-[1rem] text-muted';
+    }
+    el.rosterMsg.textContent = notes.join(' · ');
+
+    const ready = names.length >= MIN_PLAYERS;
+    el.generateBtn.disabled = !ready;
+    el.reshuffleBtn.disabled = !ready || !game.chain.length;
+    return names;
+  }
+
+  /* ─────────────── Алгоритм: один замкнутый круг ─────────────── */
+
+  // Перемешивание Фишера–Йейтса на криптостойком генераторе: два запуска не совпадут.
+  function shuffle(items) {
+    const out = items.slice();
+    const rand = (max) => {
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return buf[0] % max;
+    };
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = rand(i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  // Кольцо: кто стоит на месте i, охотится на того, кто на месте i+1, последний — на первого.
+  // Одно перемешанное кольцо по построению даёт ровно один круг на всех: ни подциклов,
+  // ни взаимных пар при 3 игроках и больше.
+  function buildChain(names) {
+    if (names.length < MIN_PLAYERS) throw new RangeError('Нужно хотя бы ' + MIN_PLAYERS + ' игрока.');
+    const order = shuffle(names);
+    const width = Math.max(2, String(order.length).length);
+    return order.map((player, i) => ({
+      code: '№' + String(i + 1).padStart(width, '0'),
+      player,
+      target: order[(i + 1) % order.length]
+    }));
+  }
+
+  // Проходим круг от первого игрока и проверяем, что он возвращается в начало,
+  // задев каждого ровно один раз. Без этой проверки список выдавать нельзя.
+  function verifyChain(chain) {
+    const targetOf = new Map(chain.map((r) => [r.player, r.target]));
+    const selfTargets = chain.filter((r) => r.player === r.target).length;
+
+    let node = chain[0].player;
+    const walked = new Set();
+    while (!walked.has(node)) {
+      walked.add(node);
+      node = targetOf.get(node);
+      if (node === undefined) {
+        return { ok: false, walked: walked.size, loops: 0, selfTargets, reason: 'в цепочке есть неизвестный игрок' };
+      }
+    }
+
+    const closes = node === chain[0].player;
+    const complete = walked.size === chain.length;
+    const unique = new Set(chain.map((r) => r.target)).size === chain.length;
+    const ok = closes && complete && unique && selfTargets === 0;
+    return {
+      ok,
+      walked: walked.size,
+      loops: ok ? 1 : (complete ? 1 : 2),
+      selfTargets,
+      reason: ok ? '' : (!complete ? 'круг распался на несколько' : 'цепочка не замкнулась')
+    };
+  }
+
+  /* ─────────────────────────── Отрисовка ─────────────────────────── */
+
+  function renderStatus(result, total) {
+    el.statNodes.textContent = result.walked + ' из ' + total;
+    el.statLoops.textContent = String(result.loops);
+    el.statSelf.textContent = String(result.selfTargets);
+    const good = result.ok;
+    el.statusDot.className = 'w-2.5 h-2.5 rounded-full shrink-0 ' + (good ? 'bg-verify' : 'bg-signal');
+    el.statusLabel.className = 'font-display text-base tracking-wide uppercase ' + (good ? 'text-verify' : 'text-signal');
+    el.statusLabel.textContent = good ? 'Круг замкнут' : 'Круг не сложился';
+  }
+
+  function renderPlayerSelect(chain) {
+    const placeholder = new Option('Выберите своё имя…', '');
+    el.playerSelect.replaceChildren(placeholder, ...chain
+      .map((r) => r.player)
+      .sort((a, b) => a.localeCompare(b, 'ru'))
+      .map((name) => new Option(name, name)));
+  }
+
+  function renderChainList(chain) {
+    el.chainList.replaceChildren(...chain.map((row, i) => {
+      const line = document.createElement('div');
+      line.className = 'ax-chain-row flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 transition-colors min-w-[440px]';
+      line.innerHTML =
+        '<span class="font-mono text-[11px] text-muted tabular-nums shrink-0"></span>' +
+        '<span class="font-mono text-[13px] sm:text-sm text-paper flex-1 truncate"></span>' +
+        '<span class="text-manila shrink-0">→</span>' +
+        '<span class="font-mono text-[13px] sm:text-sm text-manila flex-1 truncate"></span>' +
+        '<span class="font-mono text-[10px] text-muted/70 shrink-0 w-24 text-right"></span>';
+      const [code, player, , target, note] = line.children;
+      code.textContent = row.code;
+      player.textContent = row.player;
+      target.textContent = row.target;
+      note.textContent = i === chain.length - 1 ? 'круг замкнут ↺' : '';
+      return line;
+    }));
+  }
+
+  /* ─────────────────────────── Экран игрока ─────────────────────────── */
+
+  function hideTarget() {
+    clearTimeout(hideTimer);
+    el.revealCard.classList.remove('is-open');
+    el.hideBtn.disabled = true;
+    el.timerBar.style.transition = 'none';
+    el.timerBar.style.transform = 'scaleX(0)';
+    el.timerLabel.textContent = 'Скроется само через 20 секунд';
+    // Имя стираем только после того, как плашка опустилась: за ней ничего не остаётся.
+    setTimeout(() => {
+      el.targetName.innerHTML = '&nbsp;';
+      el.targetMeta.innerHTML = '&nbsp;';
+      el.revealFor.textContent = 'Игрок';
+    }, 260);
+    el.playerSelect.value = '';
+  }
+
+  function revealTarget() {
+    const player = el.playerSelect.value;
+    if (!player) {
+      el.playerSelect.classList.add('ax-shake');
+      setTimeout(() => el.playerSelect.classList.remove('ax-shake'), 340);
+      toast('Сначала выберите своё имя в списке.');
+      el.playerSelect.focus();
+      return;
+    }
+    const row = game.chain.find((r) => r.player === player);
+    if (!row) return;
+
+    el.revealFor.textContent = row.code + ' · ' + row.player;
+    el.targetName.textContent = row.target;
+    el.targetMeta.textContent = 'Устраните тихо. Дальше её жертва станет вашей.';
+    el.revealCard.classList.add('is-open');
+    el.hideBtn.disabled = false;
+
+    el.timerBar.style.transition = 'none';
+    el.timerBar.style.transform = 'scaleX(1)';
+    void el.timerBar.offsetWidth; // сброс, чтобы полоска пошла с полной длины
+    el.timerBar.style.transition = 'transform ' + HIDE_AFTER_MS + 'ms linear';
+    el.timerBar.style.transform = 'scaleX(0)';
+    el.timerLabel.textContent = 'Скрывается автоматически — или нажмите «Скрыть и передать»';
+
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hideTarget, HIDE_AFTER_MS);
+  }
+
+  /* ─────────────────────────── Замок ведущего ─────────────────────────── */
+
+  function setLocked(locked) {
+    el.gmLocked.classList.toggle('hidden', !locked);
+    el.gmLocked.classList.toggle('flex', locked);
+    el.gmOpen.classList.toggle('hidden', locked);
+    el.gmOpen.classList.toggle('flex', !locked);
+    el.lockBtn.classList.toggle('hidden', locked);
+    el.unlockInput.classList.toggle('hidden', !game.passcode);
+    el.unlockBtn.textContent = game.passcode ? 'Открыть' : 'Показать цепочку';
+    if (locked) {
+      el.chainList.replaceChildren(); // пока закрыто, цепочки нет и в самой странице
+      el.unlockInput.value = '';
+      el.unlockMsg.textContent = '';
+    } else {
+      renderChainList(game.chain);
+    }
+  }
+
+  /* ─────────────────────────── Файлы ─────────────────────────── */
+
+  const TRANSLIT = {
+    а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh', з:'z', и:'i', й:'y', к:'k', л:'l', м:'m',
+    н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'h', ц:'c', ч:'ch', ш:'sh', щ:'sch',
+    ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya'
+  };
+
+  // Имена файлов — латиницей, иначе часть архиваторов покажет кракозябры.
+  const slug = (name) => name.toLowerCase().split('')
+    .map((ch) => (ch in TRANSLIT ? TRANSLIT[ch] : ch))
+    .join('')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'igrok';
+
+  function chainTxt() {
+    const lines = [
+      'КИЛЛЕР — ЦЕПОЧКА ЖЕРТВ (КОПИЯ ВЕДУЩЕГО)',
+      'Дело ' + game.caseNo + ' · ' + game.issued + ' · ' + plural(game.chain.length, 'игрок', 'игрока', 'игроков'),
+      '='.repeat(48), ''
+    ];
+    game.chain.forEach((r) => lines.push(r.code + '  ' + r.player + '  →  ' + r.target));
+    lines.push('', 'Последний игрок охотится на первого — круг замкнут.');
+    return lines.join('\n');
+  }
+
+  function chainCsv() {
+    const cell = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+    // BOM — чтобы Excel не сломал кириллицу.
+    return '﻿' + ['номер,игрок,жертва']
+      .concat(game.chain.map((r) => [r.code, r.player, r.target].map(cell).join(',')))
+      .join('\n');
+  }
+
+  function cardTxt(row) {
+    return [
+      'КИЛЛЕР — СЕКРЕТНО',
+      'Дело ' + game.caseNo,
+      '',
+      'Игрок:        ' + row.player + '  (' + row.code + ')',
+      'Ваша жертва:  ' + row.target,
+      '',
+      'Никому не показывайте эту записку. Когда устраните свою жертву,',
+      'её цель переходит к вам — круг сжимается.'
+    ].join('\n');
+  }
+
+  // Два дома, один вызов: на claude.ai файл отдаёт окно сохранения, в локальном
+  // index.html — обычная ссылка на объект Blob.
+  const downloadsReady = (window.claude && typeof window.claude.use === 'function')
+    ? window.claude.use('downloads').catch(() => null)
+    : Promise.resolve(null);
+
+  async function download(filename, data, type) {
+    const blob = data instanceof Blob ? data : new Blob([data], { type });
+    const host = await downloadsReady;
+    if (host) {
+      try {
+        const res = await host.save({ filename, data: blob });
+        toast(res.status === 'saved' ? 'Сохранено: ' + filename : 'Файл отправлен: ' + filename);
+      } catch (err) {
+        const code = err && err.code;
+        toast(code === 'declined' ? 'Сохранение отменено.'
+          : code === 'rate_limited' ? 'Окно сохранения уже открыто.'
+          : 'Здесь сохранить нельзя — нажмите «Скопировать».');
+      }
+      return;
+    }
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('Сохранено: ' + filename);
+    } catch (err) {
+      toast('Здесь сохранить нельзя — нажмите «Скопировать».');
+    }
+  }
+
+  async function exportZip() {
+    if (typeof JSZip === 'undefined') {
+      toast('Архиватор не загрузился — сохраните список .txt.');
+      return;
+    }
+    const zip = new JSZip();
+    const used = new Map();
+    zip.file('_VEDUSHCHIY_cepochka.txt', chainTxt());
+    for (const row of game.chain) {
+      let base = slug(row.player);
+      const n = (used.get(base) || 0) + 1;
+      used.set(base, n);
+      if (n > 1) base += '_' + n;
+      zip.file(base + '_zhertva.txt', cardTxt(row));
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    download('killer_' + game.caseNo + '_zapiski.zip', blob, 'application/zip');
+  }
+
+  async function copyChain() {
+    const text = chainTxt();
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Цепочка скопирована в буфер обмена.');
+    } catch (err) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.append(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      toast(ok ? 'Цепочка скопирована в буфер обмена.' : 'Скопировать не вышло — выделите список вручную.');
+    }
+  }
+
+  let toastTimer = null;
+  function toast(message) {
+    el.toast.textContent = message;
+    el.toast.classList.remove('opacity-0', 'translate-y-2');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.toast.classList.add('opacity-0', 'translate-y-2'), 3400);
+  }
+
+  /* ─────────────────────────── Сборка игры ─────────────────────────── */
+
+  function generate() {
+    const names = renderRoster();
+    try {
+      const chain = buildChain(names);
+      const result = verifyChain(chain);
+      if (!result.ok) {
+        renderStatus(result, names.length);
+        toast('Список не выдан: ' + result.reason + '. Нажмите «Перемешать».');
+        return;
+      }
+      game = {
+        chain,
+        passcode: el.passcode.value.trim(),
+        caseNo: 'АХ-' + String(Math.floor(1000 + Math.random() * 9000)),
+        issued: new Date().toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })
+      };
+      el.caseNo.textContent = game.caseNo;
+      el.issuedAt.textContent = game.issued;
+      el.agentCount.textContent = String(chain.length);
+      renderStatus(result, chain.length);
+      renderPlayerSelect(chain);
+      hideTarget();
+      setLocked(true);
+      el.reshuffleBtn.disabled = false;
+      toast('Жертвы розданы: ' + plural(chain.length, 'игрок', 'игрока', 'игроков') + ' в одном круге.');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Не удалось собрать цепочку.');
+    }
+  }
+
+  el.roster.addEventListener('input', renderRoster);
+  el.addBtn.addEventListener('click', () => {
+    const name = el.quickAdd.value.trim();
+    if (!name) { el.quickAdd.focus(); return; }
+    el.roster.value = (el.roster.value.trimEnd() + '\n' + name).trim();
+    el.quickAdd.value = '';
+    el.quickAdd.focus();
+    renderRoster();
+  });
+  el.quickAdd.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); el.addBtn.click(); }
+  });
+  el.generateBtn.addEventListener('click', generate);
+  el.reshuffleBtn.addEventListener('click', generate);
+  el.clearBtn.addEventListener('click', () => {
+    el.roster.value = '';
+    el.passcode.value = '';
+    game = { chain: [], passcode: '', caseNo: '', issued: '' };
+    el.caseNo.textContent = 'АХ-0000';
+    el.issuedAt.textContent = '—';
+    el.agentCount.textContent = '0';
+    el.statNodes.textContent = el.statLoops.textContent = el.statSelf.textContent = '—';
+    el.statusDot.className = 'w-2.5 h-2.5 rounded-full shrink-0 bg-muted';
+    el.statusLabel.className = 'font-display text-base tracking-wide uppercase text-muted';
+    el.statusLabel.textContent = 'Ждём список';
+    renderPlayerSelect([]);
+    hideTarget();
+    setLocked(true);
+    renderRoster();
+    el.roster.focus();
+  });
+
+  el.revealBtn.addEventListener('click', revealTarget);
+  el.hideBtn.addEventListener('click', hideTarget);
+  el.playerSelect.addEventListener('change', () => {
+    if (el.revealCard.classList.contains('is-open')) hideTarget();
+  });
+
+  el.unlockForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!game.chain.length) { el.unlockMsg.textContent = 'Сначала раздайте жертв.'; return; }
+    if (game.passcode && el.unlockInput.value !== game.passcode) {
+      el.unlockMsg.textContent = 'Неверный пароль.';
+      el.unlockInput.classList.add('ax-shake');
+      setTimeout(() => el.unlockInput.classList.remove('ax-shake'), 340);
+      return;
+    }
+    setLocked(false);
+  });
+  el.lockBtn.addEventListener('click', () => setLocked(true));
+
+  document.querySelectorAll('[data-export]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!game.chain.length) { toast('Пока нечего сохранять — раздайте жертв.'); return; }
+      const kind = btn.dataset.export;
+      if (kind === 'txt') download('killer_' + game.caseNo + '_spisok.txt', chainTxt(), 'text/plain;charset=utf-8');
+      else if (kind === 'csv') download('killer_' + game.caseNo + '_tablica.csv', chainCsv(), 'text/csv;charset=utf-8');
+      else if (kind === 'zip') exportZip();
+      else copyChain();
+    });
+  });
+
+  // Открываемся в рабочем виде: пример списка уже разобран, досье закрыто.
+  el.roster.value = ['Аня Соколова', 'Максим Дорн', 'Лейла Хайруллина', 'Пётр Ивашов', 'Дина Абрамова', 'Тимур Валиев'].join('\n');
+  renderRoster();
+  generate();
+  el.rosterMsg.textContent = 'Это пример — замените именами своих игроков';
+})();
+</script>
+</body>
+</html>

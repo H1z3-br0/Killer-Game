@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Люди{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card">
+  <form method="get" class="row" style="margin-bottom:16px">
+    <label><span>Поиск</span><input name="q" value="{{ q }}" placeholder="фамилия или логин"></label>
+    <label style="flex:0 1 200px"><span>Фильтр</span>
+      <select name="filter">
+        <option value="" {{ 'selected' if not filter }}>все</option>
+        <option value="blocked" {{ 'selected' if filter == 'blocked' }}>заблокированные</option>
+        <option value="never" {{ 'selected' if filter == 'never' }}>не входили</option>
+        <option value="today" {{ 'selected' if filter == 'today' }}>новые сегодня</option>
+      </select></label>
+    <label style="flex:0 0 110px"><span>&nbsp;</span><button class="wide">Найти</button></label>
+  </form>
+
+  <div class="scroll"><table>
+    <tr><th>Человек</th><th>Игр</th><th></th></tr>
+    {% for u in rows %}
+    <tr>
+      <td>
+        <a href="/admin/users/{{ u.id }}">{{ u.avatar_emoji }} {{ display_name(u) }}</a>
+        <span class="mono s faint">@{{ u.login }}</span>
+        {% if u.role == 'sysadmin' %}<span class="tag wait">сисадмин</span>{% endif %}
+        {% if u.status == 'blocked' %}<span class="tag out">заблокирован</span>{% endif %}
+        {% if not u.last_seen_at %}<span class="tag plain">не входил</span>{% endif %}
+      </td>
+      <td class="n">{{ u.active_games }}</td>
+      <td style="text-align:right">
+        <div class="acts" style="justify-content:flex-end">
+          <form method="post" action="/admin/users/{{ u.id }}/reset" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Код</button>
+          </form>
+          <form method="post" action="/admin/users/{{ u.id }}/block" class="inline"
+                onsubmit="return confirm('{{ 'Разблокировать?' if u.status == 'blocked' else 'Заблокировать и вывести из активных игр?' }}')">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="sm ghost">{{ 'Вернуть' if u.status == 'blocked' else 'Блок' }}</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="3" class="empty">Никого не найдено</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

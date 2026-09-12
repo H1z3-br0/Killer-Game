@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Новая игра{% endblock %}
+{% block content %}
+<div class="card" style="max-width:620px;margin-inline:auto">
+  <h2>Новая игра</h2>
+  {% if error %}<div class="msg bad">{{ error }}</div>{% endif %}
+  <form method="post" action="/manage/games/new">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label><span>Название</span><input name="title" required maxlength="80" placeholder="Осенний отстрел"></label>
+    <label><span>Описание</span><textarea name="description" maxlength="500"></textarea></label>
+
+    <div class="row">
+      <label><span>Кто может войти</span>
+        <select name="visibility">
+          <option value="open">Открытая — вступает кто хочет</option>
+          <option value="private">Закрытая — только по приглашению</option>
+        </select>
+      </label>
+      <label style="flex:0 1 130px"><span>Мест</span><input name="capacity" inputmode="numeric" placeholder="∞"></label>
+      <label style="flex:0 1 130px"><span>Цвет</span>
+        <select name="color">{% for c in colors %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+      </label>
+    </div>
+
+    <h3 style="margin:22px 0 12px">Правила</h3>
+    <label><span>Чем засчитывается устранение</span><input name="weapon" placeholder="наклейка на спине"></label>
+    <label><span>Сейф-зоны</span><input name="safe_zones" placeholder="столовая, переговорные"></label>
+    <div class="row">
+      <label><span>Нельзя охотиться с</span><input name="quiet_from" placeholder="19:00"></label>
+      <label><span>до</span><input name="quiet_to" placeholder="09:00"></label>
+      <label><span>Играем до</span><input name="deadline_at" placeholder="2026-09-20"></label>
+    </div>
+    <label class="check" style="margin-top:13px">
+      <input type="checkbox" name="no_weekends"><span>И по выходным нельзя</span></label>
+    <p class="s dim">Время сервис проверяет сам и не примет заявку. Оружие и сейф-зоны — на совести игроков.</p>
+
+    <button class="primary wide" style="margin-top:8px">Создать</button>
+  </form>
+</div>
+{% endblock %}

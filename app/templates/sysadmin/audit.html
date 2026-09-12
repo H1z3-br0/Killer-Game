@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Аудит{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card">
+  <form method="get" class="row" style="margin-bottom:14px">
+    <label><span>Действие</span><input name="action" value="{{ action }}" placeholder="withdraw, block, reset"></label>
+    <label style="flex:0 0 110px"><span>&nbsp;</span><button class="wide">Фильтр</button></label>
+  </form>
+  <div class="scroll"><table>
+    <tr><th>Когда</th><th>Кто</th><th>Что</th><th>Над чем</th></tr>
+    {% for r in rows %}
+    <tr><td class="n s">{{ r.created_at[5:16] | replace('T', ' ') }}</td>
+        <td class="s">{{ display_name(r) if r.last_name else 'система' }}</td>
+        <td class="mono s">{{ r.action }}</td>
+        <td class="s faint">{{ r.target_type }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="empty">Записей нет</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

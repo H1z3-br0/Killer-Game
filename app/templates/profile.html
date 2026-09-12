@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Профиль{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>{{ user.avatar_emoji }} {{ user.last_name }} {{ user.first_name }}</h2>
+    <span class="s"><span class="mono faint">@{{ user.login }}</span>{% if user.department %}
+      <span class="dim"> · {{ user.department }}</span>{% endif %}</span>
+  </div>
+  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+    <div><span class="lbl">Игр</span><b>{{ stats.games }}</b></div>
+    <div><span class="lbl">Устранений</span><b>{{ stats.kills }}</b></div>
+    <div><span class="lbl">Побед</span><b>{{ stats.wins }}</b></div>
+  </div>
+  {% set titles = {'first_blood':'Первая кровь','triple':'Три устранения','double_day':'Двойное за день',
+                   'finalist':'Финалист','survivor3':'Пережил троих','veteran':'Ветеран','winner':'Победитель'} %}
+  {% if achievements %}
+  <div class="acts" style="margin-top:16px">
+    {% for a in achievements %}<span class="tag wait">{{ titles.get(a.code, a.code) }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  <form method="post" action="/profile" style="margin-top:18px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <label style="flex:0 0 80px"><span>Аватар</span><input name="avatar_emoji" value="{{ user.avatar_emoji }}" maxlength="4"></label>
+      <label><span>Отдел</span><input name="department" value="{{ user.department }}"></label>
+      <label><span>Telegram</span><input name="telegram" value="{{ user.telegram }}" placeholder="без @"></label>
+    </div>
+    <button class="sm" style="margin-top:13px">Сохранить</button>
+  </form>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Пароль</h2>
+    <form method="post" action="/profile/password">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label><span>Текущий</span><input type="password" name="current" required></label>
+      <div class="row">
+        <label><span>Новый</span><input type="password" name="password" required minlength="6"></label>
+        <label><span>Ещё раз</span><input type="password" name="password2" required></label>
+      </div>
+      <button style="margin-top:13px">Сменить</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2>Устройства</h2>
+      <form method="post" action="/devices/code" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm gold">Код для входа</button>
+      </form>
+    </div>
+    <ul class="feed">
+      {% for s in sessions %}
+      <li><span class="s">{{ s.user_agent[:38] or 'неизвестное' }}</span>
+        {% if s.id != user.session_id %}
+        <form method="post" action="/profile/sessions/{{ s.id }}/revoke" class="inline" style="margin-left:auto">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Отключить</button>
+        </form>
+        {% else %}<span class="tag live" style="margin-left:auto">это устройство</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Мои игры</h2>
+  <div class="scroll"><table>
+    <tr><th>Игра</th><th>Итог</th><th>Место</th></tr>
+    {% for g in games %}
+    <tr><td><a href="/games/{{ g.id }}">{{ g.title }}</a></td>
+        <td class="s dim">{{ {'draft':'набор','recruiting':'набор','running':'идёт','paused':'пауза',
+                              'finished':'завершена','void':'не состоялась'}[g.status] }}</td>
+        <td class="n">{{ g.place or '—' }}</td></tr>
+    {% else %}<tr><td colspan="3" class="empty">Пока ничего</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

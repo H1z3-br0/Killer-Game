@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Код сброса{% endblock %}
+{% block content %}
+<div class="card center" style="max-width:440px;margin-inline:auto">
+  <p class="lbl">{{ target.last_name }} {{ target.first_name }} · {{ minutes }} минут</p>
+  <p class="mono" style="font-size:36px;letter-spacing:.16em;margin:14px 0">{{ code }}</p>
+  <p class="s dim">Передайте лично или в Telegram. Пароль человек задаст себе сам.</p>
+  <div class="acts" style="justify-content:center">
+    <button class="sm" data-copy="{{ code }}">Скопировать</button>
+    <a class="btn sm ghost" href="/admin/users">К списку</a>
+  </div>
+</div>
+{% endblock %}

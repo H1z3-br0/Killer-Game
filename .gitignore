@@ -1,0 +1,34 @@
+# ─── окружение ───
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ─── данные: игры, бэкапы, служебные файлы SQLite ───
+# База живёт только на сервере: в репозитории ей делать нечего.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+
+# ─── секреты и локальные настройки ───
+.env
+.env.*
+!.env.example
+
+# ─── логи и временное ───
+*.log
+.cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ─── система и редакторы ───
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

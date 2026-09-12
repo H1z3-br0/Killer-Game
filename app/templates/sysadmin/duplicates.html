@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Дубли{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card">
+  <p class="s dim">Пары, чьи ФИО отличаются на один-два символа. Объединение переносит
+    историю на оставшуюся запись.</p>
+  {% for p in pairs %}
+  <div class="card inner" style="margin:12px 0">
+    <div class="row" style="align-items:center">
+      <div><b>{{ p.a_name }}</b><br><span class="s faint">#{{ p.a.id }} · {{ p.a.created_at[:10] }}</span></div>
+      <div><b>{{ p.b_name }}</b><br><span class="s faint">#{{ p.b.id }} · {{ p.b.created_at[:10] }}</span></div>
+      <div class="acts" style="flex:0 1 auto">
+        <form method="post" action="/admin/users/{{ p.a.id }}/merge" class="inline"
+              onsubmit="return confirm('Оставить {{ p.a_name }}?')">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="drop_id" value="{{ p.b.id }}">
+          <button class="sm ghost">← оставить</button>
+        </form>
+        <form method="post" action="/admin/users/{{ p.b.id }}/merge" class="inline"
+              onsubmit="return confirm('Оставить {{ p.b_name }}?')">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="drop_id" value="{{ p.a.id }}">
+          <button class="sm ghost">оставить →</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% else %}<p class="empty">Похожих записей нет</p>{% endfor %}
+</div>
+{% endblock %}

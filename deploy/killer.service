@@ -1,0 +1,20 @@
+# systemd-юнит для Linux-сервера.
+#   sudo cp deploy/killer.service /etc/systemd/system/
+#   sudo systemctl enable --now killer
+[Unit]
+Description=Киллер — сервис игры на выбывание
+After=network.target
+
+[Service]
+Type=simple
+User=killer
+WorkingDirectory=/opt/killer
+ExecStart=/opt/killer/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+# База и бэкапы лежат рядом с кодом; при переносе укажите пути явно:
+# Environment=KILLER_DB=/var/lib/killer/killer.db
+# Environment=KILLER_BACKUPS=/var/lib/killer/backups
+
+[Install]
+WantedBy=multi-user.target

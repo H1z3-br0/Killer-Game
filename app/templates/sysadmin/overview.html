@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Админка{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card flat">
+  <div class="stats">
+    <div><span class="lbl">Людей</span><b>{{ stats.users }}</b></div>
+    <div><span class="lbl">Активны за неделю</span><b>{{ stats.active_week }}</b></div>
+    <div><span class="lbl">Игр идёт</span><b>{{ stats.running }}</b></div>
+    <div><span class="lbl">Заявок открыто</span><b>{{ stats.open_requests }}</b></div>
+  </div>
+  <p class="s faint" style="margin:12px 0 0">База {{ stats.db_size }} КБ · бэкапов {{ stats.backups }} ·
+    аптайм {{ stats.uptime }}{% if stats.errors %} · <a href="/admin/maintenance">ошибок {{ stats.errors }}</a>{% endif %}</p>
+</div>
+
+{% if orphan %}
+<div class="card" style="--accent:var(--signal)">
+  <h2>Требуют внимания</h2>
+  <p class="s dim">Ведущий заблокирован — передайте права.</p>
+  <ul class="feed">{% for g in orphan %}<li><a href="/admin/games/{{ g.id }}">{{ g.title }}</a></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="head"><h2>Заявки</h2><a class="s dim" href="/admin/support">все</a></div>
+  <ul class="feed">
+    {% for r in requests %}
+    <li><span class="mono s">{{ r.code }}</span>
+      <span>{{ {'password':'сброс пароля','name_conflict':'конфликт ФИО',
+                'withdraw':'вывод участника','other':'другое'}[r.type] }}</span>
+      <time>{{ r.created_at[5:16] | replace('T', ' ') }}</time></li>
+    {% else %}<li class="empty">Пусто</li>{% endfor %}
+  </ul>
+</div>
+{% endblock %}

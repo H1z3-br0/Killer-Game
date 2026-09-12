@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Вход по коду{% endblock %}
+{% block content %}
+<div class="card" style="max-width:380px;margin-inline:auto">
+  <h2>Вход по коду</h2>
+  <p class="s dim">Код выпускается в профиле на устройстве, где вход сохранён.</p>
+  {% if error %}<div class="msg bad">{{ error }}</div>{% endif %}
+  <form method="post" action="/login/device">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label><span>Логин</span>
+      <input name="login" required autocapitalize="none" style="font-family:var(--mono)"></label>
+    <label><span>Код</span><input name="code" inputmode="numeric" required
+      style="font-family:var(--mono);font-size:22px;letter-spacing:.3em;text-align:center"></label>
+    <button class="primary wide">Войти</button>
+  </form>
+  <p class="s dim center" style="margin-bottom:0">Нет живых сессий? <a href="/support">Сисадмин</a></p>
+</div>
+{% endblock %}

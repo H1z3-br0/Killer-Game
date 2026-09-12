@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Круги{% endblock %}
+{% block content %}
+  <nav class="nav" style="margin-bottom:4px">
+    <a href="/admin" class="{{ 'on' if page == 'overview' }}">Обзор</a>
+    <a href="/admin/users" class="{{ 'on' if page == 'users' }}">Люди</a>
+    <a href="/admin/support" class="{{ 'on' if page == 'support' }}">Заявки</a>
+    <a href="/admin/games" class="{{ 'on' if page == 'games' }}">Игры</a>
+    <a href="/admin/duplicates" class="{{ 'on' if page == 'dupes' }}">Дубли</a>
+    <a href="/admin/integrity" class="{{ 'on' if page == 'integrity' }}">Круги</a>
+    <a href="/admin/backups" class="{{ 'on' if page == 'backups' }}">Бэкапы</a>
+    <a href="/admin/maintenance" class="{{ 'on' if page == 'maint' }}">Сервис</a>
+    <a href="/admin/settings" class="{{ 'on' if page == 'settings' }}">Настройки</a>
+    <a href="/admin/audit" class="{{ 'on' if page == 'audit' }}">Аудит</a>
+  </nav>
+
+<div class="card">
+  <div class="scroll"><table>
+    <tr><th>Игра</th><th>Живых</th><th>Пройдено</th><th>Кругов</th><th>Итог</th></tr>
+    {% for r in rows %}
+    <tr><td><a href="/admin/games/{{ r.game.id }}">{{ r.game.title }}</a></td>
+        <td class="n">{{ r.check.total }}</td><td class="n">{{ r.check.walked }}</td>
+        <td class="n">{{ r.check.loops }}</td>
+        <td style="color:{{ 'var(--verify)' if r.check.ok else 'var(--signal)' }}">
+          {{ 'цел' if r.check.ok else r.check.reason }}</td></tr>
+    {% else %}<tr><td colspan="5" class="empty">Активных игр нет</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

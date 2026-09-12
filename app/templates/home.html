@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% for c in pending %}
+<div class="claim">
+  <h2>Подтвердите устранение</h2>
+  <p class="who">{{ c.killer_name }} <span style="color:var(--signal)">→</span> {{ c.victim_name }}</p>
+  <p class="s dim" style="margin:-8px 0 14px">{{ c.title }}</p>
+  <div class="acts">
+    <form method="post" action="/claims/{{ c.id }}/confirm" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="primary">Так и было</button>
+    </form>
+    <a class="btn ghost" href="/games/{{ c.game_id }}">Открыть игру</a>
+  </div>
+</div>
+{% endfor %}
+
+<div class="card">
+  <div class="head">
+    <h2>Мои игры</h2>
+    <a class="btn sm gold" href="/manage/games/new">Создать игру</a>
+  </div>
+  {% for g in games %}
+  <a class="game" href="/games/{{ g.id }}" style="--accent:{{ g.color }}">
+    <h3>{{ g.title }}</h3>
+    <div class="meta">
+      {% if g.my_status == 'alive' %}<span class="tag live">в игре</span>
+      {% elif g.my_status == 'dead' %}<span class="tag out">выбыл{% if g.place %} · {{ g.place }} место{% endif %}</span>
+      {% elif g.my_status == 'withdrawn' %}<span class="tag out">выведен</span>
+      {% elif g.my_status == 'invited' %}<span class="tag wait">ответьте до старта</span>
+      {% else %}<span class="tag plain">в составе</span>{% endif %}
+      <span>{{ {'draft':'набор','recruiting':'набор','running':'идёт','paused':'пауза',
+                'finished':'завершена','void':'не состоялась'}[g.status] }}</span>
+    </div>
+  </a>
+  {% else %}
+  <p class="empty">Пока ни одной игры</p>
+  {% endfor %}
+</div>
+
+{% if catalog %}
+<div class="card">
+  <div class="head"><h2>Открытый набор</h2><a class="s dim" href="/catalog">все игры</a></div>
+  {% for g in catalog %}
+  <div class="game" style="--accent:{{ g.color }}">
+    <h3>{{ g.title }}</h3>
+    <div class="meta">
+      <span>{{ g.joined_count }}{% if g.capacity %} из {{ g.capacity }}{% endif %} в составе</span>
+      <form method="post" action="/games/{{ g.id }}/join" class="inline" style="margin-left:auto">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="sm gold">Участвую</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="card">
+    <h2>История игр</h2>
+    <ul class="feed">
+      {% for f in feed %}
+      <li>
+        <span class="tag plain" style="color:{{ f.color }};border-color:{{ f.color }}44">
+          {{ {'finished':'финал','running':'идёт','paused':'пауза','void':'отмена'}.get(f.status, 'набор') }}</span>
+        <span>{{ f.title }}{% if f.winner %} — победил {{ f.winner }}{% endif %}</span>
+      </li>
+      {% else %}<li class="empty">Тихо</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Мой счёт</h2>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      <div><span class="lbl">Игр</span><b>{{ stats.games }}</b></div>
+      <div><span class="lbl">Устранений</span><b>{{ stats.kills }}</b></div>
+      <div><span class="lbl">Побед</span><b>{{ stats.wins }}</b></div>
+    </div>
+    <p class="s dim" style="margin:14px 0 0"><a href="/hall">Зал славы</a> · <a href="/profile">Профиль</a></p>
+  </div>
+</div>
+{% endblock %}

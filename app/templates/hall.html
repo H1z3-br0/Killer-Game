@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Зал славы{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>Зал славы</h2>
+    <nav class="nav">
+      <a href="/hall" class="{{ 'on' if not year }}">Всё время</a>
+      {% for y in years %}<a href="/hall?year={{ y }}" class="{{ 'on' if year == y }}">{{ y }}</a>{% endfor %}
+    </nav>
+  </div>
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Игрок</th><th>Побед</th><th>Устранений</th><th>Игр</th></tr>
+    {% for r in rows %}
+    <tr><td class="n faint">{{ loop.index }}</td>
+        <td>{{ r.avatar_emoji }} {{ r.name }}</td>
+        <td class="n">{{ r.wins or 0 }}</td><td class="n">{{ r.kills }}</td><td class="n faint">{{ r.games }}</td></tr>
+    {% else %}<tr><td colspan="5" class="empty">Ни одной завершённой игры</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

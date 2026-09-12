@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Обращение {{ code }}{% endblock %}
+{% block content %}
+<div class="card center" style="max-width:460px;margin-inline:auto">
+  <p class="lbl">Номер обращения</p>
+  <p class="mono" style="font-size:38px;letter-spacing:.14em;margin:12px 0">{{ code }}</p>
+  <p class="s dim">Передайте номер сисадмину — он выдаст одноразовый код.</p>
+  <div class="acts" style="justify-content:center">
+    <button class="sm" data-copy="{{ code }}">Скопировать</button>
+    {% if telegram %}<a class="btn sm gold" href="https://t.me/{{ telegram }}">@{{ telegram }}</a>{% endif %}
+    <a class="btn sm ghost" href="/login/reset">У меня есть код</a>
+  </div>
+</div>
+{% endblock %}

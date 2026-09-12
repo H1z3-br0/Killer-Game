@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd для macOS. Держит сервис поднятым и перезапускает после сбоя:
+       cp deploy/com.killer.plist ~/Library/LaunchAgents/
+       launchctl load -w ~/Library/LaunchAgents/com.killer.plist
+     Путь ниже замените на свой. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.killer</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/ЗАМЕНИТЕ/aesc_services/Assassin/.venv/bin/uvicorn</string>
+    <string>app.main:app</string>
+    <string>--host</string><string>0.0.0.0</string>
+    <string>--port</string><string>8000</string>
+    <string>--workers</string><string>1</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/ЗАМЕНИТЕ/aesc_services/Assassin</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/tmp/killer.log</string>
+  <key>StandardErrorPath</key><string>/tmp/killer.err.log</string>
+</dict>
+</plist>

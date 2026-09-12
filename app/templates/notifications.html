@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Сигналы{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Сигналы</h2>
+  <ul class="feed">
+    {% for n in items %}
+    <li>{% if n.game_id %}<a href="/games/{{ n.game_id }}">{{ n.text }}</a>{% else %}<span>{{ n.text }}</span>{% endif %}
+      <time>{{ n.created_at[8:10] }}.{{ n.created_at[5:7] }} {{ n.created_at[11:16] }}</time></li>
+    {% else %}<li class="empty">Пусто</li>{% endfor %}
+  </ul>
+</div>
+{% endblock %}

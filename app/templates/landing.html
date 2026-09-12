@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>История игр</h2>
+    <a class="s dim" href="/rules">Правила игры</a>
+  </div>
+  <ul class="feed">
+    {% for f in feed %}
+    <li>
+      <span class="tag plain" style="color:{{ f.color }};border-color:{{ f.color }}44">
+        {{ {'finished':'финал','running':'идёт','paused':'пауза','void':'отмена'}.get(f.status, 'набор') }}</span>
+      <span>{{ f.title }}{% if f.winner %} — победил {{ f.winner }}{% endif %}</span>
+      {% set d = (f.finished_at or f.started_at or f.created_at) %}
+      <time>{{ d[8:10] }}.{{ d[5:7] }}</time>
+    </li>
+    {% else %}
+    <li class="empty">Игр пока не было</li>
+    {% endfor %}
+  </ul>
+  <div class="acts" style="margin-top:18px">
+    <a class="btn primary" href="/register">Зарегистрироваться</a>
+    <a class="btn" href="/login">Войти</a>
+  </div>
+</div>
+{% endblock %}

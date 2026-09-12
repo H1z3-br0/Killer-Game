@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Игры{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>Открытый набор</h2>
+    <a class="btn sm gold" href="/manage/games/new">Создать игру</a>
+  </div>
+  {% for g in games %}
+  <div class="game" style="--accent:{{ g.color }}">
+    <h3>{{ g.title }}</h3>
+    {% if g.description %}<p class="s dim" style="margin:0 0 8px">{{ g.description }}</p>{% endif %}
+    <div class="meta">
+      <span>{{ g.joined_count }}{% if g.capacity %} из {{ g.capacity }}{% endif %} в составе</span>
+      <div style="margin-left:auto">
+        {% if g.mine %}
+          <a class="btn sm ghost" href="/games/{{ g.id }}">Открыть</a>
+        {% else %}
+          <form method="post" action="/games/{{ g.id }}/join" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="sm gold">Участвую</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <p class="empty">Открытых наборов нет. Закрытые игры приходят приглашением.</p>
+  {% endfor %}
+</div>
+{% endblock %}

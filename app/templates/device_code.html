@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Код{% endblock %}
+{% block content %}
+<div class="card center" style="max-width:400px;margin-inline:auto">
+  <p class="lbl">Код действует {{ ttl }} минуты</p>
+  <p class="mono" style="font-size:44px;letter-spacing:.22em;margin:14px 0">{{ code }}</p>
+  <p class="s dim">Введите его на другом устройстве вместе с ФИО.</p>
+  <div class="acts" style="justify-content:center">
+    <button class="sm" data-copy="{{ code }}">Скопировать</button>
+    <a class="btn sm ghost" href="/profile">В профиль</a>
+  </div>
+</div>
+{% endblock %}
