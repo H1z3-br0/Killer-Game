@@ -15,10 +15,6 @@ def user_by_login(login: str) -> sqlite3.Row | None:
     return query_one("SELECT * FROM user WHERE login = ?", (login,))
 
 
-def user_by_name(normalized: str) -> sqlite3.Row | None:
-    return query_one("SELECT * FROM user WHERE name_normalized = ?", (normalized,))
-
-
 def search_people(q: str = "", limit: int = 60) -> list[dict]:
     """Поиск человека по ФИО или логину — для раздела «Люди».
 
@@ -234,17 +230,6 @@ def user_stats(user_id: int) -> dict:
         " FROM participant p JOIN game g ON g.id = p.game_id"
         " WHERE p.user_id = ? AND p.status IN ('alive','dead','withdrawn')", (user_id,))
     return dict(row) if row else {"games": 0, "kills": 0, "wins": 0}
-
-
-def hall_of_fame(limit: int = 20) -> list[dict]:
-    rows = query(
-        "SELECT u.id, u.avatar_emoji, u.last_name, u.first_name, u.middle_name,"
-        " COUNT(DISTINCT p.game_id) AS games, COALESCE(SUM(p.kills_count), 0) AS kills,"
-        " SUM(CASE WHEN g.winner_participant_id = p.id THEN 1 ELSE 0 END) AS wins"
-        " FROM user u JOIN participant p ON p.user_id = u.id"
-        " JOIN game g ON g.id = p.game_id AND g.status = 'finished'"
-        " GROUP BY u.id ORDER BY wins DESC, kills DESC, games DESC LIMIT ?", (limit,))
-    return [{**dict(r), "name": display_name(r)} for r in rows]
 
 
 def achievements(user_id: int) -> list[sqlite3.Row]:

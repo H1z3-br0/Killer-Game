@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import traceback
+from datetime import datetime, timedelta, timezone
 
 from . import config, game_logic
 from .db import audit, execute, now, query, transaction
@@ -37,14 +38,24 @@ def close_expired_games() -> list[str]:
     return done
 
 
+ERROR_LOG_DAYS = 30
+RATE_HIT_DAYS = 1
+
+
+def _ago(days: int) -> str:
+    """Момент N дней назад в том же формате, в каком мы храним время."""
+    return (datetime.now(timezone.utc) - timedelta(days=days)).replace(
+        microsecond=0).isoformat()
+
+
 def cleanup() -> int:
-    """Истёкшие одноразовые коды и старые счётчики частоты не нужны никому."""
+    """Истёкшие одноразовые коды, старые счётчики и давние ошибки."""
     removed = 0
     for sql, params in (
         ("DELETE FROM device_code WHERE expires_at < ?", (now(),)),
         ("DELETE FROM reset_code WHERE expires_at < ? AND used_at IS NULL", (now(),)),
-        ("DELETE FROM rate_hit WHERE created_at < ?", (now()[:10],)),
-        ("DELETE FROM error_log WHERE created_at < ?", (now()[:4] + str(int(now()[5:7]) - 1).zfill(2) if now()[5:7] != '01' else now(),)),
+        ("DELETE FROM rate_hit WHERE created_at < ?", (_ago(RATE_HIT_DAYS),)),
+        ("DELETE FROM error_log WHERE created_at < ?", (_ago(ERROR_LOG_DAYS),)),
     ):
         try:
             removed += execute(sql, params).rowcount

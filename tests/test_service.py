@@ -195,6 +195,43 @@ def test_people_search() -> None:
     print("✓ поиск людей по ФИО работает, профиль открывается")
 
 
+def test_revert_restores_chain() -> None:
+    """Откат обязан вернуть круг ровно в прежний вид, иначе он опаснее пользы."""
+    admin = client()
+    login(admin, "Шеф")
+    gid = build_running_game(admin, "Откатная")
+
+    chain = lambda: {p["id"]: p["target_id"] for p in db.query(
+        "SELECT id, target_id FROM participant WHERE game_id = ? AND status = 'alive'", (gid,))}
+    before = chain()
+    victim = list(before.values())[0]
+    killer = [h for h, t in before.items() if t == victim][0]
+
+    with db.transaction() as conn:
+        game_logic.eliminate(conn, gid, victim, "kill_confirmed", killer_id=killer)
+    assert len(chain()) == len(before) - 1
+
+    r = admin.post(f"/admin/games/{gid}/revert", data={"csrf": csrf(admin)})
+    assert "Откачено" in r.text, r.text[:200]
+    assert chain() == before, "цепочка после отката отличается от исходной"
+    assert game_logic.verify_chain(db.connect(), gid)["ok"]
+    assert db.query_one("SELECT kills_count FROM participant WHERE id = ?",
+                        (killer,))["kills_count"] == 0, "счётчик устранений не откатился"
+    print("✓ откат возвращает круг и счётчики в прежнее состояние")
+
+
+def test_cleanup_keeps_fresh_errors() -> None:
+    """Уборка должна убирать давнее, а не всё подряд."""
+    scheduler.log_error("/fresh", "свежая ошибка")
+    db.execute("INSERT INTO error_log (path, message, created_at)"
+               " VALUES ('/ancient', 'старая', '2020-01-01T00:00:00+00:00')")
+    scheduler.cleanup()
+    paths = [r["path"] for r in db.query("SELECT path FROM error_log")]
+    assert "/fresh" in paths, "уборка стёрла свежие ошибки"
+    assert "/ancient" not in paths, "уборка не тронула давние"
+    print("✓ уборка не трогает свежие ошибки")
+
+
 def test_player_cannot_reach_admin() -> None:
     c = client()
     login(c, "Первый", "Иван")
@@ -212,5 +249,7 @@ if __name__ == "__main__":
     test_every_page_renders()
     test_one_game_at_a_time()
     test_people_search()
+    test_revert_restores_chain()
+    test_cleanup_keeps_fresh_errors()
     test_player_cannot_reach_admin()
     print("\nслужебные проверки пройдены")
