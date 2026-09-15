@@ -20,8 +20,8 @@ people = [("Ведущий", "Игорь", "igor"), ("Соколова", "Анн
           ("Валиев", "Тимур", "timur")]
 for i, (last, first, login) in enumerate(people):
     db.execute("INSERT INTO user (login, last_name, first_name, name_normalized,"
-               " password_hash, role, avatar_emoji, department, created_at, last_seen_at)"
-               " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               " password_hash, role, avatar_emoji, created_at, last_seen_at)"
+               " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                (login, last, first, security.normalize_name(last, first),
                 security.hash_password("secret123"),
                 "sysadmin" if i == 0 else "user", "🕵", db.now(), db.now()))

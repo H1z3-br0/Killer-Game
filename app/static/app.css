@@ -144,6 +144,24 @@ select { appearance: none; background-image:
 .check span { font-family: var(--body); font-size: 14.5px; letter-spacing: 0;
   text-transform: none; color: var(--paper); margin: 0; }
 
+/* Выбор цвета игры: сам цвет и есть подпись, коды показывать незачем. */
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.swatch { margin: 0; cursor: pointer; line-height: 0; }
+.swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.swatch span {
+  display: block; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--c); border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.swatch:hover span { transform: scale(1.08); }
+.swatch input:checked + span {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--c), 0 0 0 4px rgba(0, 0, 0, .35);
+  transform: scale(1.08);
+}
+.swatch input:focus-visible + span { outline: 2px solid var(--paper); outline-offset: 3px; }
+
 /* ─────────── кнопки ─────────── */
 
 .btn, button {

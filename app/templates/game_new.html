@@ -17,9 +17,19 @@
         </select>
       </label>
       <label style="flex:0 1 130px"><span>Мест</span><input name="capacity" inputmode="numeric" placeholder="∞"></label>
-      <label style="flex:0 1 130px"><span>Цвет</span>
-        <select name="color">{% for c in colors %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
-      </label>
+    </div>
+
+    <div style="margin-bottom:13px">
+      <span class="lbl" style="display:block;margin-bottom:8px">Цвет игры</span>
+      <div class="swatches">
+        {% for c in colors %}
+        <label class="swatch" style="--c: {{ c }}">
+          <input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}>
+          <span></span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="s dim" style="margin:8px 0 0">Помогает не перепутать игры, если играете сразу в нескольких.</p>
     </div>
 
     <h3 style="margin:22px 0 12px">Правила</h3>
