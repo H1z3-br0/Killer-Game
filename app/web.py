@@ -14,6 +14,20 @@ templates = Jinja2Templates(directory=str(config.BASE_DIR / "app" / "templates")
 templates.env.filters["from_json"] = lambda raw: __import__("json").loads(raw or "{}")
 
 
+def _assets_version() -> str:
+    """Метка версии для ссылок на CSS и JS.
+
+    Статика отдаётся с длинным сроком кеша, поэтому без такой метки браузер
+    неделю показывал бы старые стили после обновления сервиса.
+    """
+    static = config.BASE_DIR / "app" / "static"
+    newest = max((f.stat().st_mtime for f in static.glob("*.*")), default=0)
+    return str(int(newest))
+
+
+templates.env.globals["assets_version"] = _assets_version()
+
+
 def flash(response: RedirectResponse, message: str, kind: str = "ok") -> RedirectResponse:
     """Однократное сообщение после редиректа — живёт до следующего показа.
 

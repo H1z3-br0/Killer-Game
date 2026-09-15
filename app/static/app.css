@@ -144,23 +144,40 @@ select { appearance: none; background-image:
 .check span { font-family: var(--body); font-size: 14.5px; letter-spacing: 0;
   text-transform: none; color: var(--paper); margin: 0; }
 
-/* Выбор цвета игры: сам цвет и есть подпись, коды показывать незачем. */
-.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
-.swatch { margin: 0; cursor: pointer; line-height: 0; }
-.swatch input { position: absolute; opacity: 0; width: 0; height: 0; }
-.swatch span {
-  display: block; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--c); border: 2px solid transparent;
-  box-shadow: 0 0 0 1px var(--line);
-  transition: transform .12s ease, box-shadow .12s ease;
+/* Выбор цвета игры: список с плашками — нативный select цвета не показывает. */
+.dot-color { width: 16px; height: 16px; border-radius: 50%; flex: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .15); }
+
+.colorpick { position: relative; }
+.colorpick summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none;
+  background: rgba(0, 0, 0, .35); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 11px 13px; font-size: 15px; transition: border-color .15s;
 }
-.swatch:hover span { transform: scale(1.08); }
-.swatch input:checked + span {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 2px var(--c), 0 0 0 4px rgba(0, 0, 0, .35);
-  transform: scale(1.08);
+.colorpick summary::-webkit-details-marker { display: none; }
+.colorpick summary::after {
+  content: ""; margin-left: auto; width: 6px; height: 6px; border-right: 1.5px solid var(--dim);
+  border-bottom: 1.5px solid var(--dim); transform: rotate(45deg) translate(-2px, -2px);
 }
-.swatch input:focus-visible + span { outline: 2px solid var(--paper); outline-offset: 3px; }
+.colorpick summary:hover { border-color: #333c4f; }
+.colorpick[open] summary { border-color: var(--manila); }
+
+.colorpick-list {
+  position: absolute; z-index: 30; left: 0; right: 0; margin-top: 4px;
+  background: var(--raised); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: var(--shadow-lift); padding: 4px; max-height: 280px; overflow-y: auto;
+}
+.colorpick-list label {
+  display: flex; align-items: center; gap: 10px; margin: 0; padding: 9px 10px;
+  border-radius: 4px; cursor: pointer; font-size: 15px;
+}
+.colorpick-list label:hover { background: rgba(255, 255, 255, .05); }
+.colorpick-list input { position: absolute; opacity: 0; width: 0; height: 0; }
+.colorpick-list input:checked ~ span { color: var(--manila); }
+.colorpick-list input:focus-visible ~ .dot-color { outline: 2px solid var(--paper);
+  outline-offset: 2px; }
+.colorpick-list span { font-family: var(--body); font-size: 15px; letter-spacing: 0;
+  text-transform: none; color: var(--paper); }
 
 /* ─────────── кнопки ─────────── */
 

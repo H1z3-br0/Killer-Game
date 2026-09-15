@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
-from datetime import datetime
 
 from . import config
 from .db import now
@@ -69,23 +68,6 @@ def award(conn: sqlite3.Connection, user_id: int | None, code: str,
     conn.execute(
         "INSERT OR IGNORE INTO achievement (user_id, code, game_id, awarded_at)"
         " VALUES (?, ?, ?, ?)", (user_id, code, game_id, now()))
-
-
-def quiet_now(rules: dict) -> str:
-    """Правило «когда нельзя» — единственное, что сервис умеет проверять сам.
-
-    Сравниваем с ЛОКАЛЬНЫМ временем сервера: он стоит в офисе, и его время и
-    есть офисное. В базе всё остальное хранится в UTC.
-    """
-    now_local = datetime.now()
-    if rules.get("no_weekends") and now_local.weekday() >= 5:
-        return "по выходным охота запрещена правилами игры"
-    start, end = rules.get("quiet_from", ""), rules.get("quiet_to", "")
-    if not start or not end:
-        return ""
-    current = now_local.strftime("%H:%M")
-    inside = (start <= current < end) if start < end else (current >= start or current < end)
-    return f"с {start} до {end} охота запрещена правилами игры" if inside else ""
 
 
 # ─────────────────────────── инвариант ───────────────────────────
@@ -380,10 +362,6 @@ def create_claim(conn: sqlite3.Connection, game_id: int, author_participant_id: 
     game = conn.execute("SELECT * FROM game WHERE id = ?", (game_id,)).fetchone()
     if game["status"] != "running":
         raise ValueError("игра сейчас не идёт")
-
-    blocked = quiet_now(json.loads(game["rules_json"] or "{}"))
-    if blocked:
-        raise ValueError(blocked.capitalize())
 
     author = conn.execute("SELECT * FROM participant WHERE id = ?",
                           (author_participant_id,)).fetchone()

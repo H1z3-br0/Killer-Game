@@ -29,8 +29,7 @@ for i, (last, first, login) in enumerate(people):
 db.execute("INSERT INTO game (title, description, status, visibility, color, admin_user_id,"
            " rules_json, created_at) VALUES (?, ?, 'recruiting', 'open', ?, 1, ?, ?)",
            ("Осенний отстрел", "Игра на неделю для всего этажа.", "#D9A441",
-            '{"weapon": "наклейка на спине", "safe_zones": "столовая, переговорные",'
-            ' "quiet_from": "19:00", "quiet_to": "09:00", "no_weekends": true}', db.now()))
+            '{"code_word": "омела"}', db.now()))
 for uid in range(2, 8):
     u = db.query_one("SELECT * FROM user WHERE id = ?", (uid,))
     db.execute("INSERT INTO participant (game_id, user_id, display_name_snapshot, status,"

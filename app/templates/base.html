@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A0D12">
 <title>{% block title %}{{ settings.platform_name }}{% endblock %}</title>
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v={{ assets_version }}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#127919;</text></svg>">
 </head>
 <body>
@@ -48,6 +48,6 @@
   <footer><a href="https://t.me/{{ settings.support_telegram }}">Поддержка</a></footer>
   {% endif %}
 </div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v={{ assets_version }}"></script>
 </body>
 </html>

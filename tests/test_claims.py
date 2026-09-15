@@ -1,7 +1,6 @@
 """Заявки на устранение: подтверждение, отмена, устаревшие экраны, правила."""
 from __future__ import annotations
 
-import pytest
 from conftest import alive_count, chain_of, csrf
 
 from app import db, game_logic
@@ -151,22 +150,17 @@ def test_no_claims_while_paused(game_factory, people):
     assert "не идёт" in r.text and pending(gid) is None
 
 
-def test_quiet_hours_block_claims(game_factory, people):
-    """Единственное правило, которое сервис проверяет сам."""
-    gid = game_factory(start=True, quiet_from="00:00", quiet_to="23:59")
-    killer, _ = killer_and_victim(gid)
-    kc = people[login_of(killer)]
-    r = kc.post(f"/games/{gid}/claims", data={"csrf": csrf(kc)})
-    assert "запрещена правилами" in r.text and pending(gid) is None
+def test_code_word_shown_to_players(game_factory, people):
+    """Кодовое слово — общее для игры и видно её участникам."""
+    gid = game_factory(start=True, code_word="омела")
+    page = people["anna"].get(f"/games/{gid}").text
+    assert "Кодовое слово" in page and "омела" in page
 
 
-@pytest.mark.parametrize("rules,expected", [
-    ({}, False),
-    ({"quiet_from": "00:00", "quiet_to": "23:59"}, True),
-    ({"quiet_from": "23:58", "quiet_to": "23:59"}, False),
-])
-def test_quiet_now_logic(rules, expected):
-    assert bool(game_logic.quiet_now(rules)) is expected
+def test_code_word_hidden_from_outsiders(game_factory, people):
+    gid = game_factory(visibility="private", players=("anna", "maks", "leila"),
+                       start=True, code_word="омела")
+    assert "омела" not in people["dina"].get(f"/games/{gid}").text
 
 
 def test_duplicate_claim_returns_same_one(game_factory, people):

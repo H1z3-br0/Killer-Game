@@ -99,15 +99,12 @@
 {% endif %}
 
 {% set rules = game.rules_json | from_json %}
-{% if rules.weapon or rules.safe_zones or rules.quiet_from or rules.no_weekends %}
+{% if rules.code_word and me and me.status in ('alive', 'dead', 'withdrawn') %}
 <div class="card">
-  <h2>Правила</h2>
-  <ul class="feed">
-    {% if rules.weapon %}<li><span class="lbl" style="min-width:90px">Оружие</span><span>{{ rules.weapon }}</span></li>{% endif %}
-    {% if rules.safe_zones %}<li><span class="lbl" style="min-width:90px">Сейф-зоны</span><span>{{ rules.safe_zones }}</span></li>{% endif %}
-    {% if rules.quiet_from and rules.quiet_to %}<li><span class="lbl" style="min-width:90px">Нельзя</span><span>с {{ rules.quiet_from }} до {{ rules.quiet_to }}{% if rules.no_weekends %}, и по выходным{% endif %}</span></li>
-    {% elif rules.no_weekends %}<li><span class="lbl" style="min-width:90px">Нельзя</span><span>по выходным</span></li>{% endif %}
-  </ul>
+  <h2>Кодовое слово</h2>
+  <p class="mono" style="font-size:26px;color:var(--manila);margin:0 0 8px">{{ rules.code_word }}</p>
+  <p class="s dim" style="margin:0">Устранение засчитывается, когда вы с целью остались
+    наедине: тронуть за плечо и произнести слово. При свидетелях не считается.</p>
 </div>
 {% endif %}
 

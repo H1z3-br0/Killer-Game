@@ -35,6 +35,23 @@
     });
   }
 
+  // Выбор цвета: показываем выбранное в заголовке и закрываем список.
+  const colorPick = document.getElementById('colorPick');
+  if (colorPick) {
+    const dot = colorPick.querySelector('summary .dot-color');
+    const name = document.getElementById('colorName');
+    colorPick.addEventListener('change', (e) => {
+      const input = e.target;
+      if (!input.name || input.name !== 'color') return;
+      dot.style.background = input.value;
+      name.textContent = input.dataset.name;
+      colorPick.open = false;
+    });
+    document.addEventListener('click', (e) => {
+      if (colorPick.open && !colorPick.contains(e.target)) colorPick.open = false;
+    });
+  }
+
   // Список набора: поиск и счётчик отмеченных.
   const picker = document.getElementById('picker');
   if (picker) {

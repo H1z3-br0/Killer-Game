@@ -33,16 +33,15 @@ def new_game_form(request: Request):
     if not settings_store.get("allow_anyone_create_game") and user["role"] != "sysadmin":
         return render(request, "error.html", status_code=403, code=403,
                       message="Создавать игры может только сисадмин.")
-    return render(request, "game_new.html", colors=config.GAME_COLORS)
+    return render(request, "game_new.html", colors=config.GAME_COLORS,
+                  color_names=config.GAME_COLOR_NAMES)
 
 
 @router.post("/games/new")
 def new_game(request: Request, csrf: str = Form(""), title: str = Form(""),
              description: str = Form(""), visibility: str = Form("open"),
              color: str = Form(config.GAME_COLORS[0]), capacity: str = Form(""),
-             deadline_at: str = Form(""), weapon: str = Form(""),
-             safe_zones: str = Form(""), quiet_from: str = Form(""),
-             quiet_to: str = Form(""), no_weekends: str = Form("")):
+             deadline_at: str = Form(""), code_word: str = Form("")):
     auth.check_csrf(request, csrf)
     user = auth.require_user(request)
     if not settings_store.get("allow_anyone_create_game") and user["role"] != "sysadmin":
@@ -51,13 +50,10 @@ def new_game(request: Request, csrf: str = Form(""), title: str = Form(""),
     title = title.strip()
     if not title:
         return render(request, "game_new.html", colors=config.GAME_COLORS,
+                      color_names=config.GAME_COLOR_NAMES,
                       error="У игры должно быть название.")
 
-    # Часы неприкосновенности задаются структурно — иначе сервис не смог бы их
-    # проверять, а только показывать.
-    rules = {"weapon": weapon.strip(), "safe_zones": safe_zones.strip(),
-             "quiet_from": quiet_from.strip(), "quiet_to": quiet_to.strip(),
-             "no_weekends": bool(no_weekends)}
+    rules = {"code_word": code_word.strip()[:40]}
     cur = execute(
         "INSERT INTO game (title, description, status, visibility, color, capacity,"
         " admin_user_id, rules_json, deadline_at, created_at)"

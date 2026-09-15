@@ -17,32 +17,37 @@
         </select>
       </label>
       <label style="flex:0 1 130px"><span>Мест</span><input name="capacity" inputmode="numeric" placeholder="∞"></label>
+      <label style="flex:0 1 160px"><span>Играем до</span>
+        <input name="deadline_at" placeholder="2026-09-20"></label>
     </div>
 
     <div style="margin-bottom:13px">
-      <span class="lbl" style="display:block;margin-bottom:8px">Цвет игры</span>
-      <div class="swatches">
-        {% for c in colors %}
-        <label class="swatch" style="--c: {{ c }}">
-          <input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}>
-          <span></span>
-        </label>
-        {% endfor %}
-      </div>
-      <p class="s dim" style="margin:8px 0 0">Помогает не перепутать игры, если играете сразу в нескольких.</p>
+      <span class="lbl" style="display:block;margin-bottom:6px">Цвет игры</span>
+      <details class="colorpick" id="colorPick">
+        <summary>
+          <i class="dot-color" style="background: {{ colors[0] }}"></i>
+          <span id="colorName">{{ color_names[colors[0]] }}</span>
+        </summary>
+        <div class="colorpick-list">
+          {% for c in colors %}
+          <label>
+            <input type="radio" name="color" value="{{ c }}" data-name="{{ color_names[c] }}"
+                   {{ 'checked' if loop.first }}>
+            <i class="dot-color" style="background: {{ c }}"></i>
+            <span>{{ color_names[c] }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </details>
+      <p class="s dim" style="margin:8px 0 0">Помогает не перепутать игры, если играете
+        сразу в нескольких.</p>
     </div>
 
     <h3 style="margin:22px 0 12px">Правила</h3>
-    <label><span>Чем засчитывается устранение</span><input name="weapon" placeholder="наклейка на спине"></label>
-    <label><span>Сейф-зоны</span><input name="safe_zones" placeholder="столовая, переговорные"></label>
-    <div class="row">
-      <label><span>Нельзя охотиться с</span><input name="quiet_from" placeholder="19:00"></label>
-      <label><span>до</span><input name="quiet_to" placeholder="09:00"></label>
-      <label><span>Играем до</span><input name="deadline_at" placeholder="2026-09-20"></label>
-    </div>
-    <label class="check" style="margin-top:13px">
-      <input type="checkbox" name="no_weekends"><span>И по выходным нельзя</span></label>
-    <p class="s dim">Время сервис проверяет сам и не примет заявку. Оружие и сейф-зоны — на совести игроков.</p>
+    <label><span>Кодовое слово</span>
+      <input name="code_word" maxlength="40" placeholder="например, «омела»"></label>
+    <p class="s dim" style="margin:-6px 0 16px">Устранение засчитывается, когда киллер
+      и цель остались наедине: киллер трогает цель за плечо и произносит это слово.</p>
 
     <button class="primary wide" style="margin-top:8px">Создать</button>
   </form>
